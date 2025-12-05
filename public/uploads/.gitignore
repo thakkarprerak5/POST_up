@@ -1,0 +1,38 @@
+# Environment variables
+.env*.local
+.env
+
+# Uploads directory
+/public/uploads/
+
+# Node modules
+node_modules/
+
+# Build files
+.next/
+out/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+.DS_Store
+*.pem
+
+# Testing
+coverage/
+
+# Production
+build
+
+# Misc
+*.log
+.cache/
+.vercel
+
+node_modules/
+.next/
+.env
+.DS_Store
