@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ProjectInteractions } from "@/components/project-interactions";
 
 import Image from "next/image";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -18,7 +19,8 @@ import {
 
 interface ProjectCardProps {
   project: {
-    id: number;
+    _id?: string;
+    id?: number;
     author: {
       name: string;
       avatar: string;
@@ -31,6 +33,10 @@ interface ProjectCardProps {
     video?: string;
     githubUrl: string;
     liveUrl: string;
+    likeCount?: number;
+    likes?: string[];
+    comments?: any[];
+    shareCount?: number;
   };
   variant?: "default" | "embedded";
 }
@@ -143,7 +149,7 @@ export function ProjectCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2 border-border hover:bg-muted hover:text-gray-400 bg-transparent "
+                className="gap-2 border-border hover:border-primary hover:text-primary bg-transparent "
                 asChild
               >
                 <a
@@ -158,7 +164,7 @@ export function ProjectCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2 border-border hover:bg-muted hover:text-gray-400 bg-transparent"
+                className="gap-2 border-border hover:border-primary hover:text-primary bg-transparent"
                 asChild
               >
                 <a
@@ -166,13 +172,25 @@ export function ProjectCard({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4 " />
                   Live Link
                 </a>
               </Button>
             </div>
           </div>
         </div>
+
+        {/* Bottom Section - Interactions */}
+        {(project._id || project.id) && (
+          <div className="px-4 py-2 max-w-[640px] mx-auto">
+            <ProjectInteractions
+              projectId={project._id || String(project.id)}
+              initialLikes={project.likeCount || 0}
+              initialComments={project.comments?.length || 0}
+              initialShares={project.shareCount || 0}
+            />
+          </div>
+        )}
 
         {/* Bottom Section - Tags */}
         <div className={`p-4 ${tagsBorder} bg-muted/30 max-w-[640px] mx-auto`}>

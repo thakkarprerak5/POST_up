@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Search, X, MessageCircle, ChevronDown } from "lucide-react"
+import { useQuery } from '@tanstack/react-query'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
@@ -30,6 +31,24 @@ export function Header() {
   const searchRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const { data: session } = useSession()
+
+  // Try to fetch the latest profile so header avatar matches profile page immediately after edits
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const res = await fetch('/api/profile');
+      if (!res.ok) throw new Error('Failed to fetch profile');
+      return res.json();
+    },
+    // Only fetch when session exists
+    enabled: Boolean(session),
+    // keep it fresh for a short time
+    staleTime: 1000 * 30,
+  })
+
+  const avatarSrc = profile?.photo && !profile?.photo.startsWith('blob:') 
+    ? profile?.photo 
+    : session?.user?.image || "/placeholder-user.jpg"
 
   
 
@@ -143,7 +162,7 @@ export function Header() {
                 className="flex items-center gap-2 border border-border rounded-full px-2 py-1 hover:bg-muted transition"
               >
                 <img
-                  src={session?.user?.image || "/placeholder-user.jpg"}
+                  src={avatarSrc}
                   alt="Profile"
                   className="w-8 h-8 rounded-full object-cover"
                 />
@@ -152,7 +171,7 @@ export function Header() {
 
               {/* Profile Dropdown */}
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-popover border border-border rounded-lg shadow-lg py-2 z-50">
+                <div className="absolute right-0 mt-2 w-56 bg-[#34233b] border border-border rounded-lg shadow-blue-950 py-2 z-50">
 
                   {/* Menu Items */}
                   {menuItems.map((item) => (

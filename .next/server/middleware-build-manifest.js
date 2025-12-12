@@ -1,33 +1,43 @@
-self.__BUILD_MANIFEST = {
-  "polyfillFiles": [
-    "static/chunks/polyfills.js"
-  ],
-  "devFiles": [
-    "static/chunks/fallback/react-refresh.js"
-  ],
-  "ampDevFiles": [
-    "static/chunks/fallback/webpack.js",
-    "static/chunks/fallback/amp.js"
-  ],
-  "lowPriorityFiles": [],
-  "rootMainFiles": [],
-  "rootMainFilesTree": {},
+globalThis.__BUILD_MANIFEST = {
   "pages": {
+    "/": [
+      "static/chunks/1d3c9e7fd24ddd78.js",
+      "static/chunks/072355244b7def78.js",
+      "static/chunks/fd3947536cef4b10.js",
+      "static/chunks/f3281c27cb03726c.js",
+      "static/chunks/beea3d2a7815eb28.js",
+      "static/chunks/turbopack-4ac9e2a4b4554b40.js"
+    ],
     "/_app": [
-      "static/chunks/fallback/webpack.js",
-      "static/chunks/fallback/main.js",
-      "static/chunks/fallback/pages/_app.js"
+      "static/chunks/43a2a9cbb37cccec.js",
+      "static/chunks/ef55ee7d3127e100.js",
+      "static/chunks/f3281c27cb03726c.js",
+      "static/chunks/fd3947536cef4b10.js",
+      "static/chunks/32801eb97c11c43b.css",
+      "static/chunks/turbopack-bf16a2f57a908a2c.js"
     ],
     "/_error": [
-      "static/chunks/fallback/webpack.js",
-      "static/chunks/fallback/main.js",
-      "static/chunks/fallback/pages/_error.js"
+      "static/chunks/c46c72abbe843572.js",
+      "static/chunks/f3281c27cb03726c.js",
+      "static/chunks/fd3947536cef4b10.js",
+      "static/chunks/turbopack-945d2bc2bc4e1857.js"
     ]
   },
-  "ampFirstPages": []
+  "devFiles": [],
+  "polyfillFiles": [
+    "static/chunks/a6dad97d9634a72d.js"
+  ],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [
+    "static/chunks/95a26decdbce7259.js",
+    "static/chunks/4a2e6ca9bc162ffe.js",
+    "static/chunks/e86eb785a04cdff7.js",
+    "static/chunks/54fc3f3c806a0917.js",
+    "static/chunks/2cf362a8d9a367b6.js",
+    "static/chunks/turbopack-5b4c64effb984bd6.js"
+  ]
 };
-self.__BUILD_MANIFEST.lowPriorityFiles = [
+globalThis.__BUILD_MANIFEST.lowPriorityFiles = [
 "/static/" + process.env.__NEXT_BUILD_ID + "/_buildManifest.js",
-,"/static/" + process.env.__NEXT_BUILD_ID + "/_ssgManifest.js",
-
+"/static/" + process.env.__NEXT_BUILD_ID + "/_ssgManifest.js"
 ];

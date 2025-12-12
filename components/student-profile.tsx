@@ -1,6 +1,7 @@
 "use client"
 
 import { Github, Linkedin, Globe, Mail, MapPin, Calendar, Edit } from "lucide-react"
+import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,8 @@ interface StudentProfileProps {
     name: string
     username: string
     avatar: string
+    bannerImage?: string
+    bannerColor?: string
     course: string
     branch: string
     bio: string
@@ -35,11 +38,20 @@ interface StudentProfileProps {
 }
 
 export function StudentProfile({ student, isOwner = false }: StudentProfileProps) {
+  const router = useRouter();
   return (
     <div className="space-y-6">
       {/* Profile Header Card */}
       <Card className="bg-card border-border overflow-hidden">
-        <div className="h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20" />
+        {student.bannerImage ? (
+          <div className="h-52 relative">
+            <Image src={student.bannerImage} alt="banner" fill className="object-cover" />
+          </div>
+        ) : student.bannerColor ? (
+          <div className="h-32" style={{ background: student.bannerColor }} />
+        ) : (
+          <div className="h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20" />
+        )}
         <CardContent className="relative pt-0 pb-6">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-12">
             <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
@@ -53,7 +65,12 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
                   <p className="text-muted-foreground">@{student.username}</p>
                 </div>
                 {isOwner && (
-                  <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 bg-muted hover:text-blue-800 bg-unmuted"
+                    onClick={() => router.push('/profile/edit')}
+                  >
                     <Edit className="h-4 w-4" />
                     Edit Profile
                   </Button>

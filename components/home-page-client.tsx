@@ -260,7 +260,7 @@ export default function HomePageClient() {
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full rounded-full"
+                      className="w-full rounded-full border-border hover:border-primary hover:text-primary bg-transparent"
                       onClick={() => router.push("/mentors")}
                     >
                       Find Mentors
@@ -294,6 +294,7 @@ export default function HomePageClient() {
                         <Button
                           size="sm"
                           variant={followed[s.name] ? "default" : "outline"}
+                          className="gap-2 border-border hover:border-primary hover:text-gray-400"
                           onClick={() =>
                             setFollowed((f) => ({ ...f, [s.name]: !f[s.name] }))
                           }
@@ -503,7 +504,9 @@ function FeedCard({ project }: { project: any }) {
   const [showComment, setShowComment] = useState(false);
   const [comment, setComment] = useState("");
   const authorName = project.author?.name || "Unknown";
-  const authorImage = project.author?.image || "/placeholder-user.jpg";
+  const authorImage = (project.author?.image && !project.author.image.startsWith('blob:')) 
+    ? project.author.image 
+    : "/placeholder-user.jpg";
   const share = async () => {
     const link = project.liveUrl || project.githubUrl || window.location.href;
     try {
@@ -551,7 +554,7 @@ function FeedCard({ project }: { project: any }) {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-border hover:border-primary hover:text-primary bg-transparent"
               onClick={() => setLiked((v) => !v)}
             >
               <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />{" "}
@@ -560,7 +563,7 @@ function FeedCard({ project }: { project: any }) {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-border hover:border-primary hover:text-primary bg-transparent"
               onClick={() => setShowComment((v) => !v)}
             >
               <MessageCircle className="h-4 w-4" /> Comment
@@ -568,7 +571,7 @@ function FeedCard({ project }: { project: any }) {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-border hover:border-primary hover:text-primary bg-transparent"
               onClick={share}
             >
               <Share2 className="h-4 w-4" /> Share

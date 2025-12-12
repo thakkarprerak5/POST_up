@@ -1,20 +1,33 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import { MentorCard } from "@/components/mentor-card"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 const fields = ["All", "Web Development", "AI/ML", "Data Analysis", "Mobile App", "Cyber Security", "Blockchain"]
 
 interface Mentor {
+  _id?: string
   name: string
-  title: string
-  position: string
+  title?: string
+  position?: string
   email: string
-  field: string
-  image: string
+  field?: string
+  image?: string
+  avatar?: string
+  profile?: {
+    bio?: string
+    skills?: string[]
+    type: 'student' | 'mentor'
+  }
+  followerCount?: number
+  followingCount?: number
+  linkedinUrl?: string
+  githubUrl?: string
 }
 
 const mentorsStatic = [

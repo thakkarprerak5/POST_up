@@ -45,6 +45,10 @@ export interface IUser extends Document {
   photo?: string;
   type: 'student' | 'mentor';
   profile: IProfile;
+  followers: string[];
+  following: string[];
+  followerCount: number;
+  followingCount: number;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -53,6 +57,8 @@ const profileSchema = new Schema<IProfile>({
   type: { type: String, enum: ['student', 'mentor'], required: true },
   joinedDate: { type: Date, default: Date.now },
   bio: { type: String, default: '' },
+  bannerImage: { type: String, default: '' },
+  bannerColor: { type: String, default: '' },
   enrollmentNo: { type: String, default: '' },
   course: { type: String, default: '' },
   branch: { type: String, default: '' },
@@ -91,7 +97,11 @@ const userSchema = new Schema<IUser>({
   password: { type: String, required: true },
   photo: { type: String, default: '/placeholder-user.jpg' },
   type: { type: String, enum: ['student', 'mentor'], required: true },
-  profile: { type: profileSchema, required: true }
+  profile: { type: profileSchema, required: true },
+  followers: { type: [String], default: [] }, // Array of user IDs who follow this user
+  following: { type: [String], default: [] }, // Array of user IDs this user follows
+  followerCount: { type: Number, default: 0 },
+  followingCount: { type: Number, default: 0 }
 }, { timestamps: true });
 
 // Hash password before saving
@@ -136,6 +146,8 @@ export const updateUserProfile = async (
   const set: Record<string, any> = {};
 
   if (updateData.bio !== undefined) set['profile.bio'] = updateData.bio;
+  if ((updateData as any).bannerImage !== undefined) set['profile.bannerImage'] = (updateData as any).bannerImage;
+  if ((updateData as any).bannerColor !== undefined) set['profile.bannerColor'] = (updateData as any).bannerColor;
   if (updateData.enrollmentNo !== undefined) set['profile.enrollmentNo'] = updateData.enrollmentNo;
   if (updateData.course !== undefined) set['profile.course'] = updateData.course;
   if (updateData.branch !== undefined) set['profile.branch'] = updateData.branch;

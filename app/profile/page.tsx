@@ -119,9 +119,9 @@ export default function ProfilePage() {
     name: user.fullName,
     email: user.email,
     avatar: user.photo || '',
-    bio: user.profile.bio || '',
-    socialLinks: user.profile.socialLinks || {},
-    joinedDate: new Date(user.profile.joinedDate).toLocaleDateString('en-US', {
+    bio: user.profile?.bio || '',
+    socialLinks: user.profile?.socialLinks || {},
+    joinedDate: new Date(user.profile?.joinedDate || Date.now()).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -132,18 +132,18 @@ export default function ProfilePage() {
   if (user.type === 'mentor') {
     const mentorData = {
       name: user.fullName,
-      title: user.profile.position || 'Mentor',
+      title: user.profile?.position || 'Mentor',
       email: user.email,
       avatar: user.photo || '',
-      bio: user.profile.bio || '',
-      expertise: user.profile.expertise || [],
-      department: user.profile.department || 'Department not specified',
-      researchAreas: user.profile.researchAreas || [],
-      achievements: user.profile.achievements || [],
-      officeHours: user.profile.officeHours || 'Not specified',
-      socialLinks: user.profile.socialLinks || {},
-      projectsSupervised: user.profile.projectsSupervised || [],
-      joinedDate: new Date(user.profile.joinedDate).toLocaleDateString('en-US', {
+      bio: user.profile?.bio || '',
+      expertise: user.profile?.expertise || [],
+      department: user.profile?.department || 'Department not specified',
+      researchAreas: user.profile?.researchAreas || [],
+      achievements: user.profile?.achievements || [],
+      officeHours: user.profile?.officeHours || 'Not specified',
+      socialLinks: user.profile?.socialLinks || {},
+      projectsSupervised: user.profile?.projectsSupervised || [],
+      joinedDate: new Date(user.profile?.joinedDate || Date.now()).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -166,17 +166,19 @@ export default function ProfilePage() {
   // Format data for StudentProfile component
   const studentData = {
     name: user.fullName,
-    username: user.profile.enrollmentNo || '',
+    username: user.profile?.enrollmentNo || '',
     email: user.email,
     avatar: user.photo || '',
-    bio: user.profile.bio || '',
-    course: user.profile.course || 'Course not specified',
-    branch: user.profile.branch || 'Branch not specified',
-    year: user.profile.year || 1,
-    skills: user.profile.skills || [],
+    bannerImage: user.profile?.bannerImage || '',
+    bannerColor: user.profile?.bannerColor || '',
+    bio: user.profile?.bio || '',
+    course: user.profile?.course || 'Course not specified',
+    branch: user.profile?.branch || 'Branch not specified',
+    year: user.profile?.year || 1,
+    skills: user.profile?.skills || [],
     // Map projects to match the expected type
-    projects: (user.profile.projects || []).map(project => ({
-      id: project.id ? parseInt(project.id) : Math.floor(Math.random() * 1000), // Ensure ID is a number
+    projects: (user.profile?.projects || []).map(project => ({
+      id: project.id ? parseInt(String(project.id)) : Math.floor(Math.random() * 1000), // Ensure ID is a number
       title: project.title || 'Untitled Project',
       image: project.image || '/default-project.png',
       tags: [], // Initialize empty tags array as it's required
@@ -185,11 +187,11 @@ export default function ProfilePage() {
       ...(project.url && { url: project.url })
     })),
     socialLinks: {
-      github: user.profile.socialLinks?.github || '',
-      linkedin: user.profile.socialLinks?.linkedin || '',
-      portfolio: user.profile.socialLinks?.portfolio || ''
+      github: user.profile?.socialLinks?.github || '',
+      linkedin: user.profile?.socialLinks?.linkedin || '',
+      portfolio: user.profile?.socialLinks?.portfolio || ''
     },
-    joinedDate: new Date(user.profile.joinedDate).toLocaleDateString('en-US', {
+    joinedDate: new Date(user.profile?.joinedDate || Date.now()).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

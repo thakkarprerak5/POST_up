@@ -27,7 +27,7 @@ export function MentorCard({ name, title, position, email, field, image, linkedi
             <Avatar className="h-24 w-24 rounded-xl border-2 border-border">
               <AvatarImage src={image || "/placeholder.svg"} alt={name} className="object-cover" />
               <AvatarFallback className="text-2xl rounded-xl bg-muted">
-                {name
+                {(name || "")
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}

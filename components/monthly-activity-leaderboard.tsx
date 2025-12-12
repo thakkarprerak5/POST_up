@@ -62,7 +62,7 @@ export function MonthlyActivityLeaderboard({ users }: MonthlyActivityLeaderboard
                   <Avatar className="h-8 w-8">
                     {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
                     <AvatarFallback>
-                      {user.name
+                      {(user.name || "U")
                         .split(" ")
                         .map((n) => n[0])
                         .join("")

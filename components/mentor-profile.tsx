@@ -1,6 +1,7 @@
 "use client"
 
 import { Github, Linkedin, Mail, MapPin, Calendar, Edit, Clock, BookOpen, Award, Building } from "lucide-react"
+import { useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ interface MentorProfileProps {
 }
 
 export function MentorProfile({ mentor, isOwner = false }: MentorProfileProps) {
+  const router = useRouter();
   return (
     <div className="space-y-6">
       {/* Profile Header Card */}
@@ -44,7 +46,7 @@ export function MentorProfile({ mentor, isOwner = false }: MentorProfileProps) {
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-12">
             <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
               <AvatarImage src={mentor.avatar || "/placeholder.svg"} />
-              <AvatarFallback className="text-2xl">{mentor.name[0]}</AvatarFallback>
+              <AvatarFallback className="text-2xl">{(mentor.name || "M")[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <div className="flex items-start justify-between">
@@ -53,7 +55,12 @@ export function MentorProfile({ mentor, isOwner = false }: MentorProfileProps) {
                   <p className="text-muted-foreground">{mentor.title}</p>
                 </div>
                 {isOwner && (
-                  <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 bg-muted hover:text-blue-900 bg-unmuted"
+                    onClick={() => router.push('/profile/edit')}
+                  >
                     <Edit className="h-4 w-4" />
                     Edit Profile
                   </Button>

@@ -4,45 +4,7 @@ import { useState } from "react"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import { CategoryCard } from "@/components/category-card"
-
-const categories = [
-  {
-    name: "Web Developer",
-    slug: "web-development",
-    icon: "web",
-    color: "blue",
-  },
-  {
-    name: "AI/ML",
-    slug: "ai-ml",
-    icon: "ai",
-    color: "purple",
-  },
-  {
-    name: "Data Analysis",
-    slug: "data-analysis",
-    icon: "data",
-    color: "green",
-  },
-  {
-    name: "Mobile App",
-    slug: "mobile-app",
-    icon: "mobile",
-    color: "orange",
-  },
-  {
-    name: "Cyber Security",
-    slug: "cyber-security",
-    icon: "cyber",
-    color: "red",
-  },
-  {
-    name: "Blockchain",
-    slug: "blockchain",
-    icon: "blockchain",
-    color: "indigo",
-  },
-]
+import { categories } from "@/lib/data/projects"
 
 export default function FeedPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
