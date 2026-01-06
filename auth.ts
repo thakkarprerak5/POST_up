@@ -4,6 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { findUserByEmail } from './models/User';
 import bcrypt from 'bcryptjs';
 import { connectDB } from './lib/db';
+import mongoose from 'mongoose';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -20,7 +21,33 @@ export const authOptions: NextAuthOptions = {
 
         try {
           await connectDB();
-          const user = await findUserByEmail(credentials.email);
+          console.log('🔍 Looking for user with email:', credentials.email);
+          
+          // Temporary bypass: Use direct database query instead of TypeScript model
+          const db = mongoose.connection.db;
+          if (!db) {
+            console.log('Database not connected');
+            return null;
+          }
+          
+          // Debug: Check if we can access the collection
+          const collections = await db.listCollections().toArray();
+          console.log('Available collections:', collections.map(c => c.name));
+          
+          const user = await db.collection('users').findOne({ email: credentials.email });
+          
+          console.log('👤 User found:', user ? 'YES' : 'NO');
+          if (user) {
+            console.log('📧 User email:', user.email);
+            console.log('👤 User type:', user.type);
+          } else {
+            // Check what users exist
+            const allUsers = await db.collection('users').find({}).toArray();
+            console.log('Total users in database:', allUsers.length);
+            allUsers.forEach(u => {
+              console.log('  -', u.email);
+            });
+          }
           
           if (!user) {
             console.log('No user found with this email');
@@ -53,8 +80,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role;
         token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
+        if (user.email) token.email = user.email;
+        if (user.name) token.name = user.name;
+        if (user.image) token.image = user.image;
       }
       return token;
     },
@@ -64,6 +92,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
+        session.user.image = token.image as string;
       }
       return session;
     },
@@ -73,10 +102,14 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
 
 // Add these exports at the bottom of the file
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST, authOptions };
+export { handler as GET, handler as POST };

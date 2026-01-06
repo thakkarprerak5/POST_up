@@ -1,18 +1,22 @@
 "use client"
 
-import { Github, Linkedin, Mail, MapPin, Calendar, Edit, Clock, BookOpen, Award, Building } from "lucide-react"
+import { Github, Linkedin, Edit, Clock, BookOpen, Award, Building } from "lucide-react"
 import { useRouter } from 'next/navigation'
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState } from 'react'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
+import { useFollowState } from "@/hooks/useFollowState"
 
 interface MentorProfileProps {
   mentor: {
+    _id: string
     name: string
     title: string
     avatar: string
+    bannerImage?: string
+    bannerColor?: string
     email: string
     expertise: string[]
     department: string
@@ -37,74 +41,108 @@ interface MentorProfileProps {
 
 export function MentorProfile({ mentor, isOwner = false }: MentorProfileProps) {
   const router = useRouter();
+  const { toggleFollow, isFollowing } = useFollowState();
+  
+  const handleFollow = async () => {
+    // TODO: Implement follow API call
+    toggleFollow(mentor._id);
+  };
   return (
     <div className="space-y-6">
-      {/* Profile Header Card */}
+      {/* Profile Header Card with Banner */}
       <Card className="bg-card border-border overflow-hidden">
-        <div className="h-32 bg-gradient-to-r from-accent/20 via-primary/10 to-primary/20" />
-        <CardContent className="relative pt-0 pb-6">
-          <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-12">
-            <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-              <AvatarImage src={mentor.avatar || "/placeholder.svg"} />
-              <AvatarFallback className="text-2xl">{(mentor.name || "M")[0]}</AvatarFallback>
-            </Avatar>
+        {/* Banner */}
+        <div 
+          className="h-32 w-full bg-cover bg-center bg-no-repeat relative"
+          style={{
+            backgroundImage: mentor.bannerImage ? `url(${mentor.bannerImage})` : undefined,
+            backgroundColor: mentor.bannerColor || undefined
+          }}
+        >
+          {!mentor.bannerImage && (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <span className="text-muted-foreground">No Banner</span>
+            </div>
+          )}
+        </div>
+        
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4 -mt-12">
+            <div className="relative">
+              <Image
+                src={mentor.avatar || "/placeholder.svg"}
+                alt={mentor.name}
+                width={80}
+                height={80}
+                className="rounded-full object-cover border-2 border-border bg-background"
+              />
+              {isOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0 bg-background"
+                  onClick={() => router.push('/profile/edit')}
+                  title="Edit profile"
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
             <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">{mentor.name}</h1>
-                  <p className="text-muted-foreground">{mentor.title}</p>
-                </div>
-                {isOwner && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 bg-muted hover:text-blue-900 bg-unmuted"
-                    onClick={() => router.push('/profile/edit')}
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit Profile
-                  </Button>
-                )}
-              </div>
+              <h2 className="text-xl font-bold text-foreground">{mentor.name}</h2>
+              <p className="text-sm text-muted-foreground">{mentor.title}</p>
+              <p className="text-sm text-muted-foreground">{mentor.email}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                📅 Joined {mentor.joinedDate}
+              </p>
             </div>
-          </div>
-
-          {/* Meta Info */}
-          <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Mail className="h-4 w-4" />
-              <a href={`mailto:${mentor.email}`} className="hover:text-primary transition-colors">
-                {mentor.email}
-              </a>
-            </div>
-            {mentor.location && (
-              <div className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                <span>{mentor.location}</span>
-              </div>
+            {!isOwner && (
+              <Button
+                variant={isFollowing(mentor._id) ? "default" : "outline"}
+                size="sm"
+                className={`gap-2 border-border hover:border-primary ${
+                  isFollowing(mentor._id) 
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                }`}
+                onClick={handleFollow}
+              >
+                {isFollowing(mentor._id) ? "Following" : "Follow"}
+              </Button>
             )}
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <span>Member since {mentor.joinedDate}</span>
-            </div>
           </div>
-
+          {mentor.expertise && mentor.expertise.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-foreground mb-2">Areas of Expertise</h3>
+              <div className="flex flex-wrap gap-2">
+                {mentor.expertise.map((skill) => (
+                  <Badge key={skill} variant="secondary" className="bg-secondary text-secondary-foreground">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Social Links */}
-          <div className="flex items-center gap-2 mt-4">
+          <div className="flex gap-3 mt-4">
             {mentor.socialLinks.github && (
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
-                <a href={mentor.socialLinks.github} target="_blank" rel="noopener noreferrer">
-                  <Github className="h-4 w-4" />
-                  GitHub
-                </a>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => window.open(mentor.socialLinks.github, '_blank')}
+              >
+                <Github className="h-4 w-4" />
               </Button>
             )}
             {mentor.socialLinks.linkedin && (
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent" asChild>
-                <a href={mentor.socialLinks.linkedin} target="_blank" rel="noopener noreferrer">
-                  <Linkedin className="h-4 w-4" />
-                  LinkedIn
-                </a>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => window.open(mentor.socialLinks.linkedin, '_blank')}
+              >
+                <Linkedin className="h-4 w-4" />
               </Button>
             )}
           </div>

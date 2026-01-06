@@ -7,6 +7,27 @@ import { connectDB } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { listProjects } from '@/models/Project';
+
+// Helper function to find user by various ID types
+const findUserByAnyId = async (id: string) => {
+  try {
+    // For non-ObjectId strings, try email first (most common)
+    if (!/^[0-9a-f]{24}$/i.test(id)) {
+      const emailUser = await findUserByEmail(id);
+      if (emailUser) return emailUser;
+      
+      // If not found by email and not a valid ObjectId, return null
+      return null;
+    }
+    
+    // For valid ObjectIds, try to find by ID
+    return await findUserById(id);
+  } catch (error) {
+    console.log('Error finding user by ID:', id, error);
+    return null;
+  }
+};
 
 type SessionWithUser = Session & {
   user: {
@@ -29,12 +50,13 @@ export async function GET(request: Request) {
   try {
     let user = null as any;
 
-    if (session?.user?.id) {
-      user = await findUserById(session.user.id);
-    } else if (idParam) {
-      user = await findUserById(idParam);
+    // Priority: idParam > emailParam > session user
+    if (idParam) {
+      user = await findUserByAnyId(idParam);
     } else if (emailParam) {
       user = await findUserByEmail(emailParam);
+    } else if (session?.user?.id) {
+      user = await findUserById(session.user.id);
     } else {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -43,8 +65,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Fetch user's uploaded projects
+    const userProjects = await listProjects(
+      { 'author.id': user._id.toString() },
+      { sort: { createdAt: -1 } }
+    );
+
     const userObj = user.toObject();
     delete userObj.password;
+    
+    // Add uploaded projects to the response
+    userObj.uploadedProjects = userProjects.map((project: any) => ({
+      _id: project._id.toString(),
+      id: project._id.toString(),
+      title: project.title,
+      description: project.description,
+      tags: project.tags,
+      images: project.images,
+      githubUrl: project.githubUrl,
+      liveUrl: project.liveUrl,
+      author: project.author,
+      createdAt: project.createdAt,
+      likeCount: project.likeCount || 0,
+      commentCount: project.comments?.length || 0,
+    }));
+
     return NextResponse.json(userObj);
   } catch (error) {
     console.error('Profile fetch error:', error);

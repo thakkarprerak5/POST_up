@@ -8,7 +8,8 @@ import { MentorCard } from "@/components/mentor-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-const fields = ["All", "Web Development", "AI/ML", "Data Analysis", "Mobile App", "Cyber Security", "Blockchain"]
+// These fields will be dynamically generated from mentor data
+const fields = ["All"]
 
 interface Mentor {
   _id?: string
@@ -30,68 +31,7 @@ interface Mentor {
   githubUrl?: string
 }
 
-const mentorsStatic = [
-  {
-    name: "Sarah Johnson",
-    title: "Dr.",
-    position: "Senior Faculty",
-    email: "sarah.johnson@university.edu",
-    field: "Web Development",
-    image: "/professional-woman-professor.png",
-    linkedinUrl: "https://linkedin.com",
-    githubUrl: "https://github.com",
-  },
-  {
-    name: "Michael Chen",
-    title: "Prof.",
-    position: "Department Head",
-    email: "michael.chen@university.edu",
-    field: "AI/ML",
-    image: "/professional-asian-professor.png",
-    linkedinUrl: "https://linkedin.com",
-    githubUrl: "https://github.com",
-  },
-  {
-    name: "Emily Rodriguez",
-    title: "Ms.",
-    position: "Industry Mentor",
-    email: "emily.rodriguez@techcorp.com",
-    field: "Data Analysis",
-    image: "/professional-latina-woman.png",
-    linkedinUrl: "https://linkedin.com",
-    githubUrl: "https://github.com",
-  },
-  {
-    name: "David Kim",
-    title: "Mr.",
-    position: "Tech Lead",
-    email: "david.kim@startup.io",
-    field: "Mobile App",
-    image: "/professional-korean-man-developer.jpg",
-    linkedinUrl: "https://linkedin.com",
-    githubUrl: "https://github.com",
-  },
-  {
-    name: "Amanda Foster",
-    title: "Dr.",
-    position: "Research Lead",
-    email: "amanda.foster@security.org",
-    field: "Cyber Security",
-    image: "/black-woman-scientist.png",
-    linkedinUrl: "https://linkedin.com",
-    githubUrl: "https://github.com",
-  },
-  {
-    name: "James Wilson",
-    title: "Mr.",
-    position: "Blockchain Expert",
-    email: "james.wilson@crypto.dev",
-    field: "Blockchain",
-    image: "/professional-man-blockchain-developer.jpg",
-    linkedinUrl: "https://linkedin.com",
-    githubUrl: "https://github.com",
-  },
-]
+const mentorsStatic: Mentor[] = [] // Empty array as fallback
 
 export default function MentorsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -105,16 +45,32 @@ export default function MentorsPage() {
         const res = await fetch('/api/mentors')
         if (res.ok) {
           const data = await res.json()
-          const mapped = data.map((u: any) => ({
-            name: u.fullName,
-            title: u.profile?.position || 'Mentor',
-            position: u.profile?.position || 'Mentor',
-            email: u.email,
-            field: u.profile?.department || 'Mentor',
-            image: u.photo || '/professional-woman-professor.png',
-          }))
-          setMentors(mapped)
+          console.log('Fetched mentors data:', data) // Debug log
+          
+          // Map the data to match our expected format
+          const mapped = data.map((mentor: any) => ({
+            _id: mentor.id,
+            name: mentor.name,
+            email: mentor.email || '',
+            image: mentor.avatar || '/placeholder-user.jpg',
+            title: mentor.title || 'Mentor',
+            position: mentor.position || 'Mentor ',
+            field: mentor.expertise?.[0] || 'General',
+            linkedinUrl: mentor.linkedin || '#',
+            githubUrl: mentor.github || '#',
+            profile: {
+              type: 'mentor' as const,
+              expertise: mentor.expertise || ['General'],
+              bio: mentor.bio || '',
+              skills: mentor.skills || []
+            }
+          }));
+          
+          console.log('Mapped mentors:', mapped) // Debug log
+          setMentors(mapped);
         }
+      } catch (error) {
+        console.error('Error loading mentors:', error)
       } finally {
         setLoading(false)
       }
@@ -122,18 +78,29 @@ export default function MentorsPage() {
     load()
   }, [])
 
-  const filteredMentors = selectedField === "All" ? mentors : mentors.filter((mentor) => mentor.field === selectedField)
+  // Get unique fields from mentors for the filter
+  const availableFields = ["All", "Web Development", "AI/ML", "Data Analysis", "Mobile App", "Cyber Security", "Blockchain"]
+  
+  // Filter mentors based on selected field
+  const filteredMentors = selectedField === "All" 
+    ? mentors 
+    : mentors.filter(mentor => 
+        (mentor.field || '').toLowerCase().includes(selectedField.toLowerCase()) ||
+        (mentor.profile?.expertise?.some((e: string) => 
+          e.toLowerCase().includes(selectedField.toLowerCase())
+        ))
+      )
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setSidebarOpen(true)} />
+      <Header />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="pt-20 px-4 md:px-8 pb-8 max-w-6xl mx-auto">
         {/* Filter Bar */}
         <div className="bg-card border border-border rounded-xl p-4 mb-6">
           <div className="flex flex-wrap gap-2">
-            {fields.map((field) => (
+            {availableFields.map((field) => (
               <Button
                 key={field}
                 variant={selectedField === field ? "default" : "outline"}
@@ -153,9 +120,49 @@ export default function MentorsPage() {
 
         {/* Mentors Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {(loading ? [] : filteredMentors).map((mentor) => (
-            <MentorCard key={mentor.email} {...mentor} />
-          ))}
+          {loading ? (
+            // Loading skeleton
+            Array(4).fill(0).map((_, i) => (
+              <MentorCard 
+                key={`loading-${i}`}
+                name="Loading..."
+                title="Mentor"
+                position="Mentor"
+                email=""
+                field=""
+                image=""
+                linkedinUrl="#"
+                githubUrl="#"
+              />
+            ))
+          ) : filteredMentors.length > 0 ? (
+            filteredMentors.map((mentor) => (
+            <MentorCard 
+              key={mentor._id || mentor.email} // Use _id if available, fallback to email
+              name={mentor.name}
+              title={mentor.title || 'Mentor'}
+              position={mentor.position || 'Position not specified'}
+              email={mentor.email}
+              field={mentor.field || 'General'}
+              image={mentor.image || mentor.avatar || '/placeholder-user.jpg'}
+              linkedinUrl={mentor.linkedinUrl || '#'}
+              githubUrl={mentor.githubUrl || '#'}
+            />
+          ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <p className="text-muted-foreground">No mentors found{selectedField !== 'All' ? ` in ${selectedField}` : ''}.</p>
+              {selectedField !== 'All' && (
+                <Button 
+                  variant="link" 
+                  className="mt-2"
+                  onClick={() => setSelectedField('All')}
+                >
+                  Show all mentors
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {filteredMentors.length === 0 && (

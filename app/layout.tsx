@@ -1,12 +1,11 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import { Providers } from "@/components/providers"
-import "./globals.css"
+import { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { Providers } from "@/components/providers";
+import { AuthWrapper } from "@/components/layout/auth-wrapper";
+import "./globals.css";
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "ProjectHub - Share Your Projects",
@@ -29,21 +28,25 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
-}
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased`}>
+      <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
         <Providers>
-          {children}
+          <div className="relative flex min-h-screen flex-col">
+            <AuthWrapper>
+              {children}
+            </AuthWrapper>
+          </div>
           <Analytics />
         </Providers>
       </body>
     </html>
-  )
+  );
 }

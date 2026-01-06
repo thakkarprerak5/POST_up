@@ -1,0 +1,283 @@
+import { getServerSession } from 'next-auth/next';
+import { NextResponse } from 'next/server';
+import { authOptions } from '@/auth';
+import { connectDB } from '@/lib/db';
+import Project from '@/models/Project';
+import User from '@/models/User';
+import mongoose from 'mongoose';
+
+// PATCH: Update a comment
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string; commentId: string } }
+) {
+  const { id: projectId, commentId } = params;
+  let session;
+  
+  try {
+    // 1. Get and validate session
+    const authSession = await getServerSession(authOptions);
+    if (!authSession?.user?.email) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized - Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    // 2. Get the new comment text from request body
+    const { text } = await req.json();
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'Comment text is required' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Connect to database
+    await connectDB();
+
+    // 4. Start a session for transaction
+    session = await mongoose.startSession();
+    session.startTransaction();
+
+    // 5. Find user
+    const user = await User.findOne({ email: authSession.user.email }).session(session).exec();
+    if (!user) {
+      await session.abortTransaction();
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // 6. Find the project
+    const project = await Project.findById(projectId).session(session);
+    if (!project) {
+      await session.abortTransaction();
+      return NextResponse.json(
+        { success: false, error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    // 7. Find and update the comment
+    const commentIndex = project.comments.findIndex(
+      (c: any) => c._id?.toString() === commentId || c.id === commentId
+    );
+
+    if (commentIndex === -1) {
+      await session.abortTransaction();
+      return NextResponse.json(
+        { success: false, error: 'Comment not found' },
+        { status: 404 }
+      );
+    }
+
+    // 8. Check permissions
+    const comment = project.comments[commentIndex];
+    if (comment.userId?.toString() !== user._id.toString()) {
+      await session.abortTransaction();
+      return NextResponse.json(
+        { success: false, error: 'Not authorized to edit this comment' },
+        { status: 403 }
+      );
+    }
+
+    // 9. Update the comment
+    project.comments[commentIndex].text = text.trim();
+    project.comments[commentIndex].updatedAt = new Date();
+    await project.save({ session });
+    await session.commitTransaction();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Comment updated successfully',
+      comment: project.comments[commentIndex]
+    });
+
+  } catch (error) {
+    console.error('Error updating comment:', error);
+    if (session?.inTransaction()) {
+      await session.abortTransaction();
+    }
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: 'Failed to update comment',
+        ...(process.env.NODE_ENV === 'development' && {
+          details: error instanceof Error ? error.message : 'Unknown error'
+        })
+      },
+      { status: 500 }
+    );
+  } finally {
+    if (session) {
+      await session.endSession().catch(console.error);
+    }
+  }
+}
+
+// DELETE: Remove a comment
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string; commentId: string } }
+) {
+  const { id: projectId, commentId } = params;
+  let session;
+
+  try {
+    // 1. Get and validate session
+    const authSession = await getServerSession(authOptions);
+    if (!authSession?.user?.email) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized - Please sign in' },
+        { status: 401 }
+      );
+    }
+
+    // 2. Connect to database
+    await connectDB();
+    console.log('✅ Connected to database');
+
+    // 3. Start a session for transaction
+    session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // 4. Find user
+      console.log('🔍 Looking for user:', authSession.user.email);
+      const user = await User.findOne({ email: authSession.user.email }).session(session).exec();
+      if (!user) {
+        console.error('❌ User not found in database');
+        await session.abortTransaction();
+        return NextResponse.json(
+          { success: false, error: 'User not found' },
+          { status: 404 }
+        );
+      }
+
+      console.log('Deleting comment with:', {
+        projectId,
+        commentId,
+        userId: user._id.toString(),
+        userEmail: authSession.user.email
+      });
+
+      // 5. Find the project
+      console.log('🔍 Looking for project with ID:', projectId);
+      const project = await Project.findById(projectId).session(session);
+      
+      if (!project) {
+        const errorMessage = `Project not found with ID: ${projectId}`;
+        console.error(`❌ ${errorMessage}`);
+        await session.abortTransaction();
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: errorMessage,
+            projectId,
+            commentId
+          },
+          { status: 404 }
+        );
+      }
+
+      console.log('✅ Project found. Total comments:', project.comments.length);
+      console.log('🔍 Available comment IDs:', 
+        project.comments.map((c: any) => c._id?.toString() || c.id)
+      );
+
+      // 6. Find the comment
+      console.log('🔍 Searching for comment with ID:', commentId);
+      const commentIndex = project.comments.findIndex((c: any) => 
+        c._id?.toString() === commentId || c.id === commentId
+      );
+
+      if (commentIndex === -1) {
+        const errorMessage = 'Comment not found in project';
+        console.error(`❌ ${errorMessage}`, { 
+          projectId, 
+          commentId,
+          availableCommentIds: project.comments.map((c: any) => c._id?.toString() || c.id)
+        });
+        
+        await session.abortTransaction();
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: errorMessage,
+            details: {
+              commentId,
+              projectId,
+              availableComments: project.comments.length
+            }
+          },
+          { status: 404 }
+        );
+      }
+
+      const comment = project.comments[commentIndex];
+
+      // 7. Check permissions
+      const isCommentAuthor = comment.userId?.toString() === user._id.toString();
+      const isProjectAuthor = project.author?.id?.toString() === user._id.toString();
+      
+      if (!isCommentAuthor && !isProjectAuthor) {
+        console.error('❌ Unauthorized deletion attempt:', { 
+          userId: user._id.toString(),
+          commentAuthorId: comment.userId, 
+          projectAuthorId: project.author?.id 
+        });
+        await session.abortTransaction();
+        return NextResponse.json(
+          { success: false, error: 'Not authorized to delete this comment' },
+          { status: 403 }
+        );
+      }
+
+      // 8. Remove the comment
+      project.comments.splice(commentIndex, 1);
+      await project.save({ session });
+      await session.commitTransaction();
+
+      console.log('✅ Comment deleted successfully', {
+        projectId,
+        commentId,
+        remainingComments: project.comments.length
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Comment deleted successfully',
+        commentCount: project.comments.length
+      });
+
+    } catch (error) {
+      console.error('❌ Error in transaction:', error);
+      if (session?.inTransaction()) {
+        await session.abortTransaction();
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('❌ Error in DELETE handler:', error);
+    const statusCode = error instanceof Error && error.message.includes('not found') ? 404 : 500;
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete comment';
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && {
+          details: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        })
+      },
+      { status: statusCode }
+    );
+  } finally {
+    if (session) {
+      await session.endSession().catch(console.error);
+    }
+  }
+}

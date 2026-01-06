@@ -149,10 +149,34 @@ export const projects = [
   },
 ]
 
-export const collectionCategories = categories.map((c, i) => ({
-  ...c,
-  projectCount: projects.filter((p) => p.category === c.slug).length,
-}))
+export const collectionCategories = categories.map((c, i) => {
+  // Count projects that match category directly OR have matching tags
+  const matchingProjects = projects.filter((p) => {
+    // Include projects that match category directly
+    if (p.category === c.slug) return true
+    
+    // Include projects that have tags matching the category name or slug
+    const categoryKeywords = [
+      c.name?.toLowerCase() || '',
+      c.slug?.toLowerCase() || '',
+      // Add common variations for better matching
+      c.name?.toLowerCase().replace(/\s+/g, '') || '',
+      c.slug?.toLowerCase().replace(/-/g, '') || ''
+    ].filter(Boolean)
+    
+    return p.tags?.some(tag => 
+      categoryKeywords.some(keyword => 
+        tag.toLowerCase().includes(keyword) || 
+        keyword.includes(tag.toLowerCase())
+      )
+    )
+  })
+  
+  return {
+    ...c,
+    projectCount: matchingProjects.length,
+  }
+})
 
 export default {
   categories,

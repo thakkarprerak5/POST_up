@@ -1,6 +1,6 @@
 "use client";
 
-import { User, FolderKanban, LogOut, X } from "lucide-react";
+import { User, FolderKanban, LogOut, X, Shield, Settings, Users, FileText, BarChart3, Activity } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -18,6 +18,19 @@ export const menuItems = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { data: session } = useSession();
+  
+  const isAdmin = session?.user?.role === 'admin' || session?.user?.role === 'super_admin';
+  
+  const adminMenuItems = [
+    { name: "Admin Dashboard", href: "/admin", icon: Shield },
+    { name: "Users Management", href: "/admin/users", icon: Users },
+    { name: "Reports", href: "/admin/reports", icon: FileText },
+    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { name: "Activity Logs", href: "/admin/activity", icon: Activity },
+    { name: "Settings", href: "/admin/settings", icon: Settings },
+  ];
+
+  const allMenuItems = isAdmin ? [...adminMenuItems, ...menuItems] : menuItems;
 
   return (
     <>
@@ -70,7 +83,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Menu Items */}
           <nav className="flex-1 p-4">
             <ul className="space-y-1">
-              {menuItems.map((item) => (
+              {allMenuItems.map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}

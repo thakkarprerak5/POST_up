@@ -21,6 +21,8 @@ interface UserProfile {
     type: 'student' | 'mentor';
     joinedDate: string;
     bio?: string;
+    bannerImage?: string;
+    bannerColor?: string;
     // Student specific
     enrollmentNo?: string;
     course?: string;
@@ -28,14 +30,12 @@ interface UserProfile {
     year?: number;
     skills?: string[];
     // Mentor specific
+    position?: string;
     department?: string;
     expertise?: string[];
-    position?: string;
-    experience?: number;
     researchAreas?: string[];
     achievements?: string[];
     officeHours?: string;
-    // Common
     socialLinks?: {
       github?: string;
       linkedin?: string;
@@ -55,6 +55,19 @@ interface UserProfile {
       studentName: string;
     }>;
   };
+  uploadedProjects?: Array<{
+    _id: string;
+    id: string;
+    title: string;
+    description: string;
+    tags: string[];
+    images: string[];
+    githubUrl?: string;
+    liveUrl?: string;
+    createdAt: string;
+    likeCount: number;
+    commentCount: number;
+  }>;
 }
 
 export default function ProfilePage() {
@@ -119,6 +132,8 @@ export default function ProfilePage() {
     name: user.fullName,
     email: user.email,
     avatar: user.photo || '',
+    bannerImage: user.profile?.bannerImage || '',
+    bannerColor: user.profile?.bannerColor || '',
     bio: user.profile?.bio || '',
     socialLinks: user.profile?.socialLinks || {},
     joinedDate: new Date(user.profile?.joinedDate || Date.now()).toLocaleDateString('en-US', {
@@ -135,6 +150,8 @@ export default function ProfilePage() {
       title: user.profile?.position || 'Mentor',
       email: user.email,
       avatar: user.photo || '',
+      bannerImage: user.profile?.bannerImage || '',
+      bannerColor: user.profile?.bannerColor || '',
       bio: user.profile?.bio || '',
       expertise: user.profile?.expertise || [],
       department: user.profile?.department || 'Department not specified',
@@ -185,6 +202,20 @@ export default function ProfilePage() {
       description: project.description || '',
       // Include url if it exists
       ...(project.url && { url: project.url })
+    })),
+    // Add uploadedProjects from the API response
+    uploadedProjects: (user.uploadedProjects || []).map((project: any) => ({
+      _id: project._id,
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      tags: project.tags || [],
+      images: project.images || [],
+      githubUrl: project.githubUrl,
+      liveUrl: project.liveUrl,
+      createdAt: project.createdAt,
+      likeCount: project.likeCount || 0,
+      commentCount: project.commentCount || 0,
     })),
     socialLinks: {
       github: user.profile?.socialLinks?.github || '',

@@ -28,18 +28,24 @@ interface ProjectFormData {
   tags: string[]
 }
 
-export function ProjectUploadForm() {
+interface ProjectUploadFormProps {
+  isEdit?: boolean
+  initialData?: any
+  onSuccess?: () => void
+}
+
+export function ProjectUploadForm({ isEdit = false, initialData, onSuccess }: ProjectUploadFormProps = {}) {
   const [formData, setFormData] = useState<ProjectFormData>({
-    title: "",
-    description: "",
-    githubLink: "",
-    liveLink: "",
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    githubLink: initialData?.githubUrl || "",
+    liveLink: initialData?.liveUrl || "",
     images: [],
     video: null,
-    tags: [],
+    tags: initialData?.tags || [],
   })
 
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>(initialData?.images || [])
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customTag, setCustomTag] = useState("")
@@ -131,32 +137,42 @@ export function ProjectUploadForm() {
       fd.append('tags', formData.tags.join(','))
       formData.images.forEach((img) => fd.append('images', img))
 
-      const res = await fetch('/api/projects', {
-        method: 'POST',
+      const url = isEdit ? `/api/projects/${initialData._id || initialData.id}` : '/api/projects'
+      const method = isEdit ? 'PATCH' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         body: fd,
       })
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to upload project')
+        throw new Error(err.error || `Failed to ${isEdit ? 'update' : 'upload'} project`)
       }
 
-      alert('Project uploaded successfully!')
+      const successMessage = isEdit ? 'Project updated successfully!' : 'Project uploaded successfully!'
+      alert(successMessage)
+      
+      if (isEdit && onSuccess) {
+        onSuccess()
+      } else if (!isEdit) {
+        // Reset form for new uploads
+        setFormData({
+          title: "",
+          description: "",
+          githubLink: "",
+          liveLink: "",
+          images: [],
+          video: null,
+          tags: [],
+        })
+        setImagePreviews([])
+        setVideoPreview(null)
+      }
     } catch (err) {
       alert((err as Error).message)
     }
 
-    setFormData({
-      title: "",
-      description: "",
-      githubLink: "",
-      liveLink: "",
-      images: [],
-      video: null,
-      tags: [],
-    })
-    setImagePreviews([])
-    setVideoPreview(null)
     setIsSubmitting(false)
   }
 
@@ -361,7 +377,7 @@ export function ProjectUploadForm() {
           disabled={isSubmitting}
         >
           {isSubmitting ? <Upload className="h-5 w-5 mr-2 animate-spin" /> : <Upload className="h-5 w-5 mr-2" />}
-          {isSubmitting ? "Uploading..." : "Upload Project"}
+          {isSubmitting ? (isEdit ? "Updating..." : "Uploading...") : (isEdit ? "Update Project" : "Upload Project")}
         </Button>
       </div>
     </form>

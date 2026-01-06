@@ -1,102 +1,162 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/auth';
-import { connectDB } from '@/lib/db';
-import Project from '@/models/Project';
-import User from '@/models/User';
+import { NextResponse } from 'next/server';
+import { connectDB } from '../../../../../lib/db';
+import Project from '../../../../../models/Project';
 
-/**
- * POST /api/projects/[id]/comment
- * Add a comment to a project
- */
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+// GET route with full project lookup
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  console.log('=== FULL PROJECT LOOKUP HIT ===');
+  
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { text } = await req.json();
-    if (!text || text.trim().length === 0) {
-      return Response.json({ error: 'Comment text is required' }, { status: 400 });
-    }
-
+    const { id } = await params;
+    console.log('=== COMMENTS API DEBUG ===');
+    console.log('Full lookup - ID:', id);
+    console.log('ID type:', typeof id);
+    
     await connectDB();
-    const user = await User.findOne({ email: session.user.email }).exec();
-    if (!user) {
-      return Response.json({ error: 'User not found' }, { status: 404 });
+    console.log('Database connected successfully');
+    
+    console.log('Starting project lookup...');
+    
+    // Find project by _id or custom id
+    let project;
+    try {
+      project = await Project.findById(id);
+      console.log('Project found by _id:', !!project);
+    } catch (error) {
+      console.log('Project.findById failed with invalid ObjectId format:', error instanceof Error ? error.message : 'Unknown error');
+      project = null;
     }
 
-    const project = await Project.findById(params.id).exec();
     if (!project) {
-      return Response.json({ error: 'Project not found' }, { status: 404 });
+      console.log('Trying custom id field lookup...');
+      // If not found by _id, try to find by custom id field
+      try {
+        project = await Project.findOne({ id: id });
+        console.log('Project found by custom id:', !!project);
+      } catch (error) {
+        console.log('Project.findOne with string id failed:', error instanceof Error ? error.message : 'Unknown error');
+        project = null;
+      }
     }
 
-    const comment = {
-      id: `comment_${Date.now()}`,
-      userId: user._id.toString(),
-      userName: user.fullName,
-      userAvatar: user.photo || '/placeholder-user.jpg',
-      text: text.trim(),
-      createdAt: new Date()
-    };
+    if (!project) {
+      console.log('Trying numeric id lookup...');
+      // If still not found, try to convert to number and search
+      const numericId = parseInt(id);
+      if (!isNaN(numericId)) {
+        console.log('Converted to numeric ID:', numericId);
+        try {
+          project = await Project.findOne({ id: numericId });
+          console.log('Project found by numeric id:', !!project);
+        } catch (error) {
+          console.log('Project.findOne with numeric id failed:', error instanceof Error ? error.message : 'Unknown error');
+          project = null;
+        }
+      }
+    }
+    
+    if (!project) {
+      console.log('Project not found with either _id or custom id');
+      return NextResponse.json(
+        { success: false, error: 'Project not found' },
+        { status: 404 }
+      );
+    }
 
-    project.comments.push(comment);
-    await project.save();
+    console.log('Project found:', project._id);
+    console.log('Project comments count:', project.comments?.length || 0);
 
-    return Response.json({
-      comment,
-      commentCount: project.comments.length
+    // Return comments array (empty if none exist)
+    const commentsToReturn = project.comments || [];
+    console.log('Comments to return count:', commentsToReturn.length);
+    
+    return NextResponse.json({
+      success: true,
+      comments: commentsToReturn
     });
-  } catch (error: any) {
-    console.error('POST /api/projects/[id]/comment error:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('Full lookup error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Full lookup failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
 
-/**
- * DELETE /api/projects/[id]/comment/[commentId]
- * Delete a comment (only comment author or project author can delete)
- */
-export async function DELETE(req: Request, { params }: { params: { id: string; commentId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  await connectDB();
+  
+  const { id } = await params;
+  console.log('=== POST Comment Request ===');
+  console.log('Project ID:', id);
+  
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    console.log('Comment body:', body);
+    
+    const { text, userId, userName, userAvatar } = body;
+    
+    if (!text || !userId || !userName) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
 
-    await connectDB();
-    const user = await User.findOne({ email: session.user.email }).exec();
-    if (!user) {
-      return Response.json({ error: 'User not found' }, { status: 404 });
+    // Find project by _id or custom id
+    let project;
+    try {
+      project = await Project.findById(id);
+    } catch (error) {
+      project = null;
     }
 
-    const project = await Project.findById(params.id).exec();
     if (!project) {
-      return Response.json({ error: 'Project not found' }, { status: 404 });
+      try {
+        project = await Project.findOne({ id: id });
+      } catch (error) {
+        project = null;
+      }
     }
 
-    const comment = project.comments.find((c: any) => c.id === params.commentId);
-    if (!comment) {
-      return Response.json({ error: 'Comment not found' }, { status: 404 });
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: 'Project not found' },
+        { status: 404 }
+      );
     }
 
-    const userId = user._id.toString();
-    const isCommentAuthor = comment.userId === userId;
-    const isProjectAuthor = project.author.id === userId;
+    // Create new comment
+    const newComment = {
+      id: new Date().getTime().toString(),
+      userId,
+      userName,
+      userAvatar: userAvatar || '',
+      text,
+      createdAt: new Date()
+    };
 
-    if (!isCommentAuthor && !isProjectAuthor) {
-      return Response.json({ error: 'Not authorized to delete this comment' }, { status: 403 });
+    // Add comment to project
+    if (!project.comments) {
+      project.comments = [];
     }
-
-    project.comments = project.comments.filter((c: any) => c.id !== params.commentId);
+    project.comments.push(newComment);
+    
     await project.save();
 
-    return Response.json({
-      message: 'Comment deleted',
-      commentCount: project.comments.length
+    return NextResponse.json({
+      success: true,
+      comment: newComment
     });
-  } catch (error: any) {
-    console.error('DELETE /api/projects/[id]/comment error:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create comment' },
+      { status: 500 }
+    );
   }
 }

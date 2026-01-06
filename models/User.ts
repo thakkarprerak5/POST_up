@@ -6,6 +6,8 @@ export interface IProfile {
   type: 'student' | 'mentor';
   joinedDate: Date;
   bio?: string;
+  bannerImage?: string;
+  bannerColor?: string;
   enrollmentNo?: string;
   course?: string;
   branch?: string;
@@ -43,12 +45,14 @@ export interface IUser extends Document {
   email: string;
   password: string;
   photo?: string;
-  type: 'student' | 'mentor';
+  type: 'student' | 'mentor' | 'admin' | 'super_admin';
   profile: IProfile;
   followers: string[];
   following: string[];
   followerCount: number;
   followingCount: number;
+  isActive: boolean;
+  isBlocked: boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -96,12 +100,14 @@ const userSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   photo: { type: String, default: '/placeholder-user.jpg' },
-  type: { type: String, enum: ['student', 'mentor'], required: true },
+  type: { type: String, enum: ['student', 'mentor', 'admin', 'super_admin'], required: true },
   profile: { type: profileSchema, required: true },
   followers: { type: [String], default: [] }, // Array of user IDs who follow this user
   following: { type: [String], default: [] }, // Array of user IDs this user follows
   followerCount: { type: Number, default: 0 },
-  followingCount: { type: Number, default: 0 }
+  followingCount: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true },
+  isBlocked: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Hash password before saving
@@ -118,7 +124,7 @@ userSchema.methods.comparePassword = async function(candidatePassword: string): 
 };
 
 // Create model if it doesn't exist
-const User = (global as any).User || mongoose.model<IUser>('User', userSchema);
+const User = (global as any).User || mongoose.model<IUser>('User', userSchema, 'users');
 
 // For development
 if (process.env.NODE_ENV === 'development') {

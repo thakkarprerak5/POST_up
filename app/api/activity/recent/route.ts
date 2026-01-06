@@ -16,23 +16,42 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
     const userId = url.searchParams.get('userId');
+    const authenticatedOnly = url.searchParams.get('authenticated') === 'true';
 
     const activities: any[] = [];
 
     // Fetch recent projects
-    const recentProjects = await Project.find({})
-      .select('_id title author createdAt')
+    let recentProjects = await Project.find({})
+      .select('_id title author createdAt githubUrl liveUrl images')
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean()
       .exec();
+
+    // Apply same filtering logic as projects API
+    if (authenticatedOnly) {
+      recentProjects = recentProjects.filter((project: any) => {
+        // Check for real uploaded images (starts with /uploads/)
+        const hasRealUploadedImages = project.images && project.images.length > 0 && 
+          project.images.some((img: string) => img.startsWith('/uploads/'));
+        
+        // Check for generic URLs (sample project pattern)
+        const hasGenericGithubUrl = project.githubUrl === "https://github.com" || project.githubUrl === "#";
+        const hasGenericLiveUrl = project.liveUrl === "https://example.com" || project.liveUrl === "#";
+        const hasGenericUrls = hasGenericGithubUrl && hasGenericLiveUrl;
+        
+        // Hide sample projects: has generic URLs AND no real uploaded images
+        // Show projects if they DON'T have generic URLs OR they DO have real uploaded images
+        return !hasGenericUrls || hasRealUploadedImages;
+      });
+    }
 
     recentProjects.forEach((project: any) => {
       activities.push({
         _id: `project_${project._id}`,
         type: 'project_upload',
         user: {
-          _id: project.author?._id,
+          _id: project.author?.id,
           name: project.author?.name,
           avatar: project.author?.avatar
         },

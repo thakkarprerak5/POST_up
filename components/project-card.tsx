@@ -8,6 +8,7 @@ import { ProjectInteractions } from "@/components/project-interactions";
 import Image from "next/image";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Carousel,
   CarouselContent,
@@ -22,8 +23,10 @@ interface ProjectCardProps {
     _id?: string;
     id?: number;
     author: {
+      id?: string;
       name: string;
       avatar: string;
+      image?: string;
       username: string;
     };
     title: string;
@@ -37,6 +40,8 @@ interface ProjectCardProps {
     likes?: string[];
     comments?: any[];
     shareCount?: number;
+    createdAt?: string | Date;
+    likedByUser?: boolean; // Add this property
   };
   variant?: "default" | "embedded";
 }
@@ -47,6 +52,36 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const [api, setApi] = useState<CarouselApi | null>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const router = useRouter();
+  
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (project.author.id) {
+      router.push(`/profile/${project.author.id}`);
+    }
+  };
+
+  // Helper function to format time ago
+  const formatTimeAgo = (timestamp: string | Date) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMins < 1) return "just now";
+      if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'some time ago';
+    }
+  };
   const autoplayTimer = useRef<number | null>(null);
   const hasMedia =
     (project.images && project.images.length > 0) || !!project.video;
@@ -142,6 +177,28 @@ export function ProjectCard({
           )}
 
           <div className={`${innerPadding} pt-1`}>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8 cursor-pointer" onClick={handleAuthorClick}>
+                <AvatarImage src={project.author.image || project.author.avatar} alt={project.author.name} />
+                <AvatarFallback>
+                  {project.author.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
+              <div className="cursor-pointer" onClick={handleAuthorClick}>
+                <p className="text-sm font-medium hover:underline">{project.author.name}</p>
+                <p className="text-xs text-muted-foreground hover:underline">
+                  {project.author.username}
+                </p>
+                {project.createdAt && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatTimeAgo(project.createdAt)}
+                  </p>
+                )}
+              </div>
+            </div>
             <p className="text-muted-foreground text-sm leading-relaxed mb-2">
               {project.description}
             </p>
@@ -181,16 +238,16 @@ export function ProjectCard({
         </div>
 
         {/* Bottom Section - Interactions */}
-        {(project._id || project.id) && (
-          <div className="px-4 py-2 max-w-[640px] mx-auto">
-            <ProjectInteractions
-              projectId={project._id || String(project.id)}
-              initialLikes={project.likeCount || 0}
-              initialComments={project.comments?.length || 0}
-              initialShares={project.shareCount || 0}
-            />
-          </div>
-        )}
+        <div className="px-4 py-2 max-w-[640px] mx-auto">
+          <ProjectInteractions
+            projectId={(project._id?.toString() || project.id?.toString() || '')}
+            initialLikes={project.likeCount || 0}
+            initialComments={project.comments || []}
+            initialShares={project.shareCount || 0}
+            authorId={project.author?.id}
+            likedByUser={project.likedByUser || false}
+          />
+        </div>
 
         {/* Bottom Section - Tags */}
         <div className={`p-4 ${tagsBorder} bg-muted/30 max-w-[640px] mx-auto`}>

@@ -12,7 +12,7 @@ import { ProjectInteractions } from '@/components/project-interactions';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 interface IProject {
@@ -42,22 +42,36 @@ interface IProject {
   }>;
   shareCount: number;
   likes: string[];
+  likedByUser?: boolean;
 }
 
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { data: session } = useSession();
   const [project, setProject] = useState<IProject | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const { toast } = useToast();
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getProjectId = async () => {
+      const resolvedParams = await params;
+      setProjectId(resolvedParams.id);
+    };
+    
+    getProjectId();
+  }, [params]);
 
   useEffect(() => {
     const fetchProject = async () => {
+      if (!projectId) return;
+      
       try {
         setLoading(true);
-        const response = await fetch(`/api/projects/${params.id}`);
+        const response = await fetch(`/api/projects/${projectId}`);
         if (!response.ok) {
           throw new Error('Failed to load project');
         }
@@ -71,54 +85,134 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       }
     };
 
-    fetchProject();
-  }, [params.id]);
+    if (projectId) {
+      fetchProject();
+    }
+  }, [projectId]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !session?.user?.email) {
+    
+    if (!session?.user?.email) {
       toast({
-        title: 'Error',
-        description: 'Please sign in and enter a comment',
+        title: 'Sign in required',
+        description: 'Please sign in to post a comment',
         variant: 'destructive'
       });
       return;
     }
 
+    if (!newComment.trim()) {
+      toast({
+        title: 'Comment cannot be empty',
+        description: 'Please enter your comment',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!project) return;
+
     setIsSubmittingComment(true);
+    
     try {
-      const response = await fetch(`/api/projects/${params.id}/comments`, {
+      const response = await fetch(`/api/projects/${project._id}/comments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newComment })
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          text: newComment,
+          userId: session.user.id || session.user.email,
+          userName: session.user.name || session.user.email
+        })
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to add comment');
+        throw new Error(data.error || 'Failed to add comment');
       }
 
-      const { comment } = await response.json();
-      setProject((prev) => {
+      // Update the UI with the new comment
+      setProject(prev => {
         if (!prev) return prev;
         return {
           ...prev,
-          comments: [...prev.comments, comment]
+          comments: [data.comment, ...(prev.comments || [])]
         };
       });
+      
+      // Clear the comment input
       setNewComment('');
+      
+      // Show success message
       toast({
         title: 'Success',
-        description: 'Comment added'
+        description: 'Your comment has been posted!',
+        variant: 'default'
       });
+      
     } catch (error: any) {
-      console.error('Comment error:', error);
+      console.error('Error adding comment:', error);
+      
+      // Show error message
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add comment',
+        description: error.message || 'Failed to add comment. Please try again.',
         variant: 'destructive'
       });
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('Are you sure you want to delete this comment?')) {
+      return;
+    }
+
+    if (!project) return;
+
+    setDeletingCommentId(commentId);
+    
+    try {
+      const response = await fetch(`/api/projects/${project._id}/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete comment');
+      }
+
+      // Update the UI by removing the deleted comment
+      setProject(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          comments: prev.comments.filter(comment => comment.id !== commentId)
+        };
+      });
+      
+      // Show success message
+      toast({
+        title: 'Success',
+        description: 'Comment deleted successfully',
+        variant: 'default'
+      });
+      
+    } catch (error: any) {
+      console.error('Error deleting comment:', error);
+      
+      // Show error message
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete comment. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -149,20 +243,32 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     <div className="container mx-auto py-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
+        <div 
+          className="mb-6"
+          data-reportable="true"
+          data-reportable-type="project"
+          data-reportable-id={project._id}
+          data-reported-user-id={project.author._id}
+          data-reportable-title={project.title}
+          data-reportable-description={project.description}
+          data-reportable-author={project.author.name}
+        >
           <h1 className="text-4xl font-bold mb-2">{project.title}</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Link href={`/profile/${project.author._id}`}>
+            <Link 
+              href={`/profile/${project.author._id}`}
+              className="flex items-center gap-2 hover:underline"
+            >
               {project.author.avatar && (
                 <Image
                   src={project.author.avatar}
                   alt={project.author.name}
-                  width={32}
-                  height={32}
-                  className="rounded-full"
+                  width={24}
+                  height={24}
+                  className="rounded-full w-6 h-6"
                 />
               )}
-              <span className="hover:underline">{project.author.name}</span>
+              <span>{project.author.name}</span>
             </Link>
             <span>•</span>
             <span>{new Date(project.createdAt).toLocaleDateString()}</span>
@@ -243,17 +349,23 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         {/* Interactions */}
         <Card className="mb-6 p-6">
           <ProjectInteractions
-            projectId={project._id}
-            initialLikes={project.likeCount}
-            initialComments={project.comments.length}
-            initialShares={project.shareCount}
-            initialLiked={project.likes.includes(session?.user?.email || '')}
+            projectId={project._id?.toString() || ''}
+            initialLikes={project.likeCount || 0}
+            initialComments={project.comments || []}
+            initialShares={project.shareCount || 0}
+            likedByUser={project.likedByUser || false}
+            authorId={project.author._id}
+            githubUrl={project.github || ""}
+            liveUrl={project.liveUrl || ""}
+            images={project.images || []}
           />
         </Card>
 
         {/* Comments Section */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Comments ({project.comments.length})</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Comments {project.comments?.length ? `(${project.comments.length})` : ''}
+          </h2>
 
           {session?.user ? (
             <form onSubmit={handleAddComment} className="mb-6 pb-6 border-b">
@@ -287,29 +399,61 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
           {/* Comments List */}
           <div className="space-y-4">
-            {project.comments.length === 0 ? (
+            {!project.comments || project.comments.length === 0 ? (
               <p className="text-muted-foreground">No comments yet. Be the first!</p>
             ) : (
               project.comments.map((comment) => (
-                <div key={comment.id} className="p-3 bg-secondary rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    {comment.userAvatar && (
-                      <Image
-                        src={comment.userAvatar}
-                        alt={comment.userName}
-                        width={28}
-                        height={28}
-                        className="rounded-full"
-                      />
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{comment.userName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(comment.createdAt).toLocaleDateString()}
-                      </p>
+                <div 
+                  key={comment.id} 
+                  className="p-4 bg-secondary/30 rounded-lg relative group"
+                  data-reportable="true"
+                  data-reportable-type="comment"
+                  data-reportable-id={comment.id}
+                  data-reported-user-id={comment.userId}
+                  data-reportable-content={comment.text}
+                  data-reportable-author={comment.userName}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      {comment.userAvatar ? (
+                        <Image
+                          src={comment.userAvatar}
+                          alt={comment.userName}
+                          width={32}
+                          height={32}
+                          className="rounded-full w-8 h-8 object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          {comment.userName ? comment.userName.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">{comment.userName || 'Anonymous'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(comment.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
                     </div>
+                    
+                    {(session?.user?.id === comment.userId || isAuthor) && (
+                      <button
+                        onClick={() => handleDeleteComment(comment.id)}
+                        disabled={deletingCommentId === comment.id}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1 -m-1"
+                        title="Delete comment"
+                      >
+                        {deletingCommentId === comment.id ? 'Deleting...' : '×'}
+                      </button>
+                    )}
                   </div>
-                  <p className="text-sm text-foreground">{comment.text}</p>
+                  <p className="text-sm text-foreground pl-10">{comment.text}</p>
                 </div>
               ))
             )}

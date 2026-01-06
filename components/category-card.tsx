@@ -12,6 +12,7 @@ interface CategoryCardProps {
     icon: string
     color: string
   }
+  projectCount?: number
 }
 
 const iconMap: Record<string, React.ElementType> = {
@@ -32,7 +33,7 @@ const colorMap: Record<string, string> = {
   indigo: "#6366f1",
 }
 
-export function CategoryCard({ category }: CategoryCardProps) {
+export function CategoryCard({ category, projectCount = 0 }: CategoryCardProps) {
   const Icon = iconMap[category.icon]
   const accentColor = colorMap[category.color] || colorMap.blue
 
@@ -63,6 +64,11 @@ export function CategoryCard({ category }: CategoryCardProps) {
           <h3 className="text-base font-medium text-foreground group-hover:text-primary transition-colors duration-300 text-center">
             {category.name}
           </h3>
+          
+          {/* Project count */}
+          <p className="text-sm text-muted-foreground text-center">
+            {projectCount} {projectCount === 1 ? 'project' : 'projects'}
+          </p>
         </div>
 
         {/* Animated border effect */}

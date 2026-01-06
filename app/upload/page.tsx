@@ -10,7 +10,7 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+      <Header />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="pt-16 px-4 md:px-8 lg:px-12 max-w-6xl mx-auto">

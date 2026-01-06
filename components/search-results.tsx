@@ -29,14 +29,21 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
         if (!res.ok) throw new Error('Search failed')
         const data = await res.json()
         if (!mounted) return
-        setUsers(data.users || [])
-        setProjects(data.projects || [])
-        setCollections(data.collections || [])
+        
+        // Handle both old format (with results objects) and new format (direct arrays)
+        const usersData = Array.isArray(data.users) ? data.users : (data.users?.results || [])
+        const projectsData = Array.isArray(data.projects) ? data.projects : (data.projects?.results || [])
+        const collectionsData = Array.isArray(data.collections) ? data.collections : (data.collections?.results || [])
+        
+        setUsers(usersData)
+        setProjects(projectsData)
+        setCollections(collectionsData)
       } catch (err) {
         console.warn('Search error', err)
         if (mounted) {
           setUsers([])
           setProjects([])
+          setCollections([])
         }
       } finally {
         if (mounted) setLoading(false)
@@ -115,14 +122,18 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <h4 className="font-semibold text-foreground text-sm truncate">{p.title}</h4>
-                                <p className="text-xs text-muted-foreground">by {p.author?.name}</p>
+                                <p className="text-xs text-muted-foreground">by {p.author?.name || 'Unknown'}</p>
                               </div>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{p.description}</p>
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {(p.tags || []).slice(0, 4).map((tag: string) => (
-                                <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">{tag}</Badge>
-                              ))}
+                              {(() => {
+                                const tags = p.tags || []
+                                const tagArray = typeof tags === 'string' ? tags.split(' ') : tags
+                                return tagArray.slice(0, 4).map((tag: string, index: number) => (
+                                  <Badge key={tag || index} variant="secondary" className="text-xs px-1.5 py-0">{tag}</Badge>
+                                ))
+                              })()}
                             </div>
                           </div>
                         </div>

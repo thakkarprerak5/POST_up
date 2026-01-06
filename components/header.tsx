@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { Search, X, MessageCircle, ChevronDown } from "lucide-react"
+import { Search, X, MessageCircle, ChevronDown, Shield, Settings, Users, FileText, BarChart3, Activity } from "lucide-react"
 import { useQuery } from '@tanstack/react-query'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,12 +25,26 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showResults, setShowResults] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [messageCount, setMessageCount] = useState(0)
 
   const pathname = usePathname()
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const { data: session } = useSession()
+  
+  const isAdmin = session?.user?.role === 'admin' || session?.user?.role === 'super_admin';
+  
+  const adminMenuItems = [
+    { name: "Admin Dashboard", href: "/admin", icon: Shield },
+    { name: "Users Management", href: "/admin/users", icon: Users },
+    { name: "Reports", href: "/admin/reports", icon: FileText },
+    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { name: "Activity Logs", href: "/admin/activity", icon: Activity },
+    { name: "Settings", href: "/admin/settings", icon: Settings },
+  ];
+
+  const allMenuItems = isAdmin ? [...adminMenuItems, ...menuItems] : menuItems;
 
   // Try to fetch the latest profile so header avatar matches profile page immediately after edits
   const { data: profile } = useQuery({
@@ -50,7 +64,33 @@ export function Header() {
     ? profile?.photo 
     : session?.user?.image || "/placeholder-user.jpg"
 
-  
+  // Fetch unread message count from database
+  useEffect(() => {
+    const updateMessageCount = async () => {
+      if (session?.user) {
+        try {
+          const response = await fetch('/api/chat');
+          if (response.ok) {
+            const data = await response.json();
+            const totalUnread = data.chats?.reduce((sum: number, chat: any) => {
+              return sum + (chat.unreadCount || 0);
+            }, 0) || 0;
+            setMessageCount(totalUnread);
+          }
+        } catch (error) {
+          console.error('Error fetching message count:', error);
+        }
+      }
+    };
+
+    // Initial load
+    updateMessageCount();
+
+    // Refresh message count periodically
+    const interval = setInterval(updateMessageCount, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [session]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -150,9 +190,11 @@ export function Header() {
               onClick={() => router.push("/chat")}
             >
               <MessageCircle className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold bg-primary text-primary-foreground rounded-full">
-                4
-              </span>
+              {messageCount >= 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold bg-primary text-primary-foreground rounded-full">
+                  {messageCount > 99 ? '99+' : messageCount}
+                </span>
+              )}
             </Button>
 
             {/* Profile */}
@@ -174,7 +216,7 @@ export function Header() {
                 <div className="absolute right-0 mt-2 w-56 bg-[#34233b] border border-border rounded-lg shadow-blue-950 py-2 z-50">
 
                   {/* Menu Items */}
-                  {menuItems.map((item) => (
+                  {allMenuItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -187,9 +229,7 @@ export function Header() {
                   ))}
 
                   <div className="border-t border-border my-1" />
-
                   
-                  <div className="border-t border-border my-1" />    
                   {/* Logout */}
                   <button
                     className="block px-4 py-2 text-sm text-white-600 hover:bg-muted w-full text-left"
