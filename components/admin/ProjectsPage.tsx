@@ -156,41 +156,96 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white text-gray-900 p-4">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Project Moderation</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-black">Project Moderation</h1>
+        <p className="text-black mt-2">
           Manage and moderate all platform projects
         </p>
       </div>
 
-      {/* Filters */}
-      <Card>
+      {/* Projects List */}
+      <Card className="bg-white border border-black rounded-xl">
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle className="text-black">Filters</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-white">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 h-5 w-5" />
                 <Input
                   placeholder="Search projects..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
+                  className="
+                    !bg-white text-black pl-10
+                    border border-black
+                    opacity-100
+                    hover:!bg-white
+                    focus:!bg-white
+                    focus-visible:ring-0
+                    focus-visible:ring-offset-0
+                  "
                 />
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger
+                className="
+                  w-full sm:w-48
+                  !bg-white text-black
+                  border border-black
+                  hover:!bg-white
+                  focus:!bg-white
+                  data-[state=open]:!bg-white
+                  [&>svg]:!text-black
+                  [&>svg]:!opacity-100
+                "
+              >
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="deleted">Deleted</SelectItem>
-                <SelectItem value="all">All Projects</SelectItem>
+              <SelectContent className="bg-white text-black border border-black shadow-lg">
+                <SelectItem
+                  value="active"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Active
+                </SelectItem>
+                <SelectItem
+                  value="deleted"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Deleted
+                </SelectItem>
+                <SelectItem
+                  value="all"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  All Projects
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -198,29 +253,39 @@ export default function ProjectsPage() {
       </Card>
 
       {/* Projects List */}
-      <Card>
+      <Card className="bg-white border border-black rounded-xl">
         <CardHeader>
-          <CardTitle>Projects ({pagination.total})</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-black">
+            Projects ({pagination.total})
+          </CardTitle>
+          <CardDescription className="text-black/70">
             Showing {projects.length} of {pagination.total} projects
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center h-64 bg-white">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
             </div>
           ) : (
             <div className="space-y-4">
               {projects.map((project) => (
-                <div key={project._id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={project._id} className="
+                  group
+                  flex items-center justify-between
+                  p-4 border border-black rounded-lg
+                  text-black
+                  transition-colors
+                  hover:text-white
+                  hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600
+                ">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                      <FolderOpen className="h-5 w-5 text-gray-600" />
+                    <div className="w-10 h-10 border border-black rounded-full flex items-center justify-center transition-colors group-hover:border-white">
+                      <FolderOpen className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
-                        <h3 className="font-medium">{project.title}</h3>
+                        <h3 className="font-medium text-black">{project.title}</h3>
                         <Badge className={getStatusColor(project)}>
                           {getStatusText(project)}
                         </Badge>
@@ -230,7 +295,7 @@ export default function ProjectsPage() {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                      <div className="flex items-center space-x-4 text-sm text-black/70 mt-1 group-hover:text-white/90">
                         <div className="flex items-center space-x-1">
                           <User className="h-3 w-3" />
                           <span>{project.author.name}</span>
@@ -246,14 +311,14 @@ export default function ProjectsPage() {
                           </div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                      <p className="text-sm text-black/70 mt-1 line-clamp-2 group-hover:text-white/90">
                         {project.description}
                       </p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500 mt-2">
+                      <div className="flex items-center space-x-4 text-sm text-black/70 mt-2 group-hover:text-white/90">
                         <div className="flex items-center space-x-1">
                           <Heart className="h-3 w-3" />
                           <span>{project.likeCount}</span>
-                        </div>
+                        </div>  
                         <div className="flex items-center space-x-1">
                           <MessageCircle className="h-3 w-3" />
                           <span>{project.comments.length}</span>
@@ -266,12 +331,12 @@ export default function ProjectsPage() {
                       {project.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {project.tags.slice(0, 3).map((tag, index) => (
-                            <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                            <span key={index} className="px-2 py-1 bg-gray-100 text-black text-xs rounded group-hover:bg-white/20 group-hover:text-white">
                               {tag}
                             </span>
                           ))}
                           {project.tags.length > 3 && (
-                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                            <span className="px-2 py-1 bg-gray-100 text-black text-xs rounded group-hover:bg-white/20 group-hover:text-white">
                               +{project.tags.length - 3} more
                             </span>
                           )}
@@ -282,9 +347,15 @@ export default function ProjectsPage() {
                   
                   <div className="flex items-center space-x-2">
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => setSelectedProject(project)}
+                      className="
+                        text-black border-black border
+                        bg-white
+                        hover:text-white
+                        hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600
+                        hover:border-blue-600
+                      "
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       View
@@ -292,10 +363,15 @@ export default function ProjectsPage() {
                     
                     {!project.isDeleted ? (
                       <Button
-                        variant="outline"
                         size="sm"
                         onClick={() => handleProjectAction(project._id, 'delete')}
-                        className="border-red-600 text-red-600 hover:bg-red-50"
+                        className="
+                          text-red-600 border-red-600 border
+                          bg-white
+                          hover:text-white
+                          hover:bg-gradient-to-r hover:from-red-400 hover:to-red-600
+                          hover:border-red-600
+                        "
                       >
                         <Trash2 className="h-4 w-4 mr-1" />
                         Delete
@@ -304,10 +380,15 @@ export default function ProjectsPage() {
                       <>
                         {canRestore(project) && (
                           <Button
-                            variant="outline"
                             size="sm"
                             onClick={() => handleProjectAction(project._id, 'restore')}
-                            className="border-green-600 text-green-600 hover:bg-green-50"
+                            className="
+                              text-green-600 border-green-600 border
+                              bg-white
+                              hover:text-white
+                              hover:bg-gradient-to-r hover:from-green-400 hover:to-green-600
+                              hover:border-green-600
+                            "
                           >
                             <RotateCcw className="h-4 w-4 mr-1" />
                             Restore
@@ -315,10 +396,15 @@ export default function ProjectsPage() {
                         )}
                         {isSuperAdmin && (
                           <Button
-                            variant="outline"
                             size="sm"
                             onClick={() => handleProjectAction(project._id, 'permanent_delete')}
-                            className="border-red-600 text-red-600 hover:bg-red-50"
+                            className="
+                              text-red-600 border-red-600 border
+                              bg-white
+                              hover:text-white
+                              hover:bg-gradient-to-r hover:from-red-400 hover:to-red-600
+                              hover:border-red-600
+                            "
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Permanent Delete
@@ -333,7 +419,7 @@ export default function ProjectsPage() {
               {/* Pagination */}
               {pagination.pages > 1 && (
                 <div className="flex items-center justify-between pt-4">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-black/70">
                     Page {pagination.page} of {pagination.pages}
                   </div>
                   <div className="flex space-x-2">
@@ -342,6 +428,7 @@ export default function ProjectsPage() {
                       size="sm"
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                       disabled={pagination.page === 1}
+                      className="text-black border-black hover:text-white hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600"
                     >
                       Previous
                     </Button>
@@ -350,6 +437,7 @@ export default function ProjectsPage() {
                       size="sm"
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                       disabled={pagination.page === pagination.pages}
+                      className="text-black border-black hover:text-white hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600"
                     >
                       Next
                     </Button>
@@ -364,10 +452,10 @@ export default function ProjectsPage() {
       {/* Project Detail Modal */}
       {selectedProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-black rounded-xl">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">{selectedProject.title}</h2>
+                <h2 className="text-xl font-bold text-black">{selectedProject.title}</h2>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -380,26 +468,26 @@ export default function ProjectsPage() {
               <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm">{selectedProject.author.name}</span>
+                    <User className="h-4 w-4 text-black" />
+                    <span className="text-sm text-black">{selectedProject.author.name}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm">{new Date(selectedProject.createdAt).toLocaleDateString()}</span>
+                    <Calendar className="h-4 w-4 text-black" />
+                    <span className="text-sm text-black">{new Date(selectedProject.createdAt).toLocaleDateString()}</span>
                   </div>
                   <Badge className={getStatusColor(selectedProject)}>
                     {getStatusText(selectedProject)}
                   </Badge>
                 </div>
 
-                <p className="text-gray-700">{selectedProject.description}</p>
+                <p className="text-black">{selectedProject.description}</p>
 
                 {selectedProject.tags.length > 0 && (
                   <div>
-                    <h3 className="font-medium mb-2">Tags</h3>
+                    <h3 className="font-medium mb-2 text-black">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedProject.tags.map((tag, index) => (
-                        <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded">
+                        <span key={index} className="px-3 py-1 bg-gray-100 text-black text-sm rounded">
                           {tag}
                         </span>
                       ))}
@@ -408,32 +496,32 @@ export default function ProjectsPage() {
                 )}
 
                 <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-gray-100 p-3 rounded border border-black">
                     <div className="flex items-center justify-center space-x-1">
-                      <Heart className="h-4 w-4 text-red-500" />
-                      <span className="font-semibold">{selectedProject.likeCount}</span>
+                      <Heart className="h-4 w-4 text-red-600" fill="currentColor" />
+                      <span className="font-semibold text-blue-700">{selectedProject.likeCount}</span>
                     </div>
-                    <p className="text-xs text-gray-600">Likes</p>
+                    <p className="text-xs text-black">Likes</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-gray-100 p-3 rounded border border-black">
                     <div className="flex items-center justify-center space-x-1">
-                      <MessageCircle className="h-4 w-4 text-blue-500" />
-                      <span className="font-semibold">{selectedProject.comments.length}</span>
+                      <MessageCircle className="h-4 w-4 text-black" />
+                      <span className="font-semibold text-blue-700">{selectedProject.comments.length}</span>
                     </div>
-                    <p className="text-xs text-gray-600">Comments</p>
+                    <p className="text-xs text-black">Comments</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
+                  <div className="bg-gray-100 p-3 rounded border border-black">
                     <div className="flex items-center justify-center space-x-1">
-                      <Share2 className="h-4 w-4 text-green-500" />
-                      <span className="font-semibold">{selectedProject.shareCount}</span>
+                      <Share2 className="h-4 w-4 text-black" />
+                      <span className="font-semibold text-blue-700">{selectedProject.shareCount}</span>
                     </div>
-                    <p className="text-xs text-gray-600">Shares</p>
+                    <p className="text-xs text-black">Shares</p>
                   </div>
                 </div>
 
                 {(selectedProject.githubUrl || selectedProject.liveUrl) && (
                   <div>
-                    <h3 className="font-medium mb-2">Links</h3>
+                    <h3 className="font-medium mb-2 text-black">Links</h3>
                     <div className="space-y-2">
                       {selectedProject.githubUrl && (
                         <a 

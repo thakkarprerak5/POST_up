@@ -1,0 +1,7 @@
+<!-- This is a placeholder for ganpat's profile photo -->
+<!-- You should replace this with an actual uploaded image -->
+<!-- For now, this will serve as a test profile photo -->
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="100" fill="#4F46E5"/>
+  <text x="100" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="120" fill="white" text-anchor="middle">G</text>
+</svg>

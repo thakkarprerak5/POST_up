@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Frontend Image Loading</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; }
+        .author-info { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Debug Frontend Image Loading</h1>
+    
+    <div class="test">
+        <h3>Test 1: Direct Image Loading</h3>
+        <div class="author-info">
+            <img src="/placeholder-user.jpg" alt="Direct Test" class="avatar" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div style="display: none; width: 40px; height: 40px; background: #ccc; border-radius: 50%; align-items: center; justify-content: center;">
+                D
+            </div>
+            <div>
+                <div><strong>Direct Image Test</strong></div>
+                <small>Testing /placeholder-user.jpg directly</small>
+            </div>
+        </div>
+        <div id="direct-result" class="debug"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: API Data Image Loading</h3>
+        <div id="api-test-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 3: Component Simulation</h3>
+        <div id="component-test-result"></div>
+    </div>
+
+    <script>
+        // Test 1: Direct image loading
+        const directImg = document.querySelector('img[src="/placeholder-user.jpg"]');
+        directImg.addEventListener('load', () => {
+            document.getElementById('direct-result').innerHTML = '✅ Direct image loaded successfully';
+        });
+        directImg.addEventListener('error', () => {
+            document.getElementById('direct-result').innerHTML = '❌ Direct image failed to load';
+        });
+        
+        // Test 2: API data image loading
+        async function testApiData() {
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                
+                if (ganpatProject) {
+                    const resultDiv = document.getElementById('api-test-result');
+                    resultDiv.innerHTML = `
+                        <div class="debug">
+                            API Response:<br>
+                            Title: ${ganpatProject.title}<br>
+                            Author Name: ${ganpatProject.author.name}<br>
+                            Author Image: ${ganpatProject.author.image || 'NOT SET'}<br>
+                            Author Avatar: ${ganpatProject.author.avatar || 'NOT SET'}
+                        </div>
+                        <div class="author-info">
+                            <img src="${ganpatProject.author.image || ganpatProject.author.avatar}" 
+                                 alt="${ganpatProject.author.name}" class="avatar"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            <div style="display: none; width: 40px; height: 40px; background: #ccc; border-radius: 50%; align-items: center; justify-content: center;">
+                                ${ganpatProject.author.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <div><strong>${ganpatProject.author.name}</strong></div>
+                                <small>API Image Test</small>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add event listeners to the dynamically created image
+                    const apiImg = resultDiv.querySelector('img');
+                    apiImg.addEventListener('load', () => {
+                        resultDiv.innerHTML += '<div class="debug">✅ API image loaded successfully</div>';
+                    });
+                    apiImg.addEventListener('error', (e) => {
+                        resultDiv.innerHTML += `<div class="debug">❌ API image failed to load: ${e.message}</div>`;
+                    });
+                } else {
+                    document.getElementById('api-test-result').innerHTML = '❌ Ganpat project not found in API';
+                }
+            } catch (error) {
+                document.getElementById('api-test-result').innerHTML = `❌ API Error: ${error.message}`;
+            }
+        }
+        
+        // Test 3: Component simulation
+        function simulateComponent(project) {
+            const imageUrl = project.author.image || project.author.avatar;
+            const resultDiv = document.getElementById('component-test-result');
+            
+            resultDiv.innerHTML = `
+                <div class="debug">
+                    Component Logic:<br>
+                    imageUrl = project.author.image || project.author.avatar<br>
+                    Final URL: ${imageUrl}
+                </div>
+                <div class="author-info">
+                    <img src="${imageUrl}" alt="${project.author.name}" class="avatar"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                    <div style="display: none; width: 40px; height: 40px; background: #ccc; border-radius: 50%; align-items: center; justify-content: center;">
+                        ${project.author.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div><strong>${project.author.name}</strong></div>
+                        <small>Component Simulation</small>
+                    </div>
+                </div>
+            `;
+            
+            // Add event listeners
+            const compImg = resultDiv.querySelector('img');
+            compImg.addEventListener('load', () => {
+                resultDiv.innerHTML += '<div class="debug">✅ Component image loaded successfully</div>';
+            });
+            compImg.addEventListener('error', (e) => {
+                resultDiv.innerHTML += `<div class="debug">❌ Component image failed: ${e.message}</div>`;
+            });
+        }
+        
+        // Run tests
+        window.onload = async () => {
+            await testApiData();
+            
+            // Get ganpat project from API and run component test
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                if (ganpatProject) {
+                    simulateComponent(ganpatProject);
+                }
+            } catch (error) {
+                console.error('Component test error:', error);
+            }
+        };
+    </script>
+</body>
+</html>

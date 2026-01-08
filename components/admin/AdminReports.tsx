@@ -1,6 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Shield, 
   Eye, 
@@ -212,157 +217,365 @@ const AdminReports: React.FC<AdminReportsProps> = ({ userRole }) => {
 
   const getTargetIcon = (targetType: string) => {
     switch (targetType) {
-      case 'user': return <User className="h-4 w-4" />;
-      case 'project': return <FileText className="h-4 w-4" />;
-      case 'comment': return <MessageSquare className="h-4 w-4" />;
-      case 'chat': return <MessageSquare className="h-4 w-4" />;
-      default: return <Flag className="h-4 w-4" />;
+      case 'user': return <User className="h-4 w-4 text-black" />;
+      case 'project': return <FileText className="h-4 w-4 text-black" />;
+      case 'comment': return <MessageSquare className="h-4 w-4 text-black" />;
+      case 'chat': return <MessageSquare className="h-4 w-4 text-black" />;
+      default: return <Flag className="h-4 w-4 text-black" />;
     }
   };
 
   if (loading && reports.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="flex items-center justify-center h-64 bg-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white text-gray-900 p-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => window.history.back()}
-            className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Go back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back</span>
-          </button>
-          <Shield className="h-8 w-8 text-blue-600" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Report Management</h1>
-            <p className="text-gray-600">
-              {userRole === 'super_admin' ? 'Super Admin' : 'Admin'} Dashboard
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={fetchReports}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <RefreshCw className="h-4 w-4" />
-          <span>Refresh</span>
-        </button>
+      <div>
+        <h1 className="text-3xl font-bold text-black">Report Management</h1>
+        <p className="text-black mt-2">
+          {userRole === 'super_admin' ? 'Super Admin' : 'Admin'} Dashboard
+        </p>
       </div>
 
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">By Status</h3>
-            <div className="space-y-2">
-              {Object.entries(stats.byStatus).map(([status, count]) => (
-                <div key={status} className="flex justify-between items-center">
-                  <span className="capitalize text-sm">{status}</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                    {count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">By Priority</h3>
-            <div className="space-y-2">
-              {Object.entries(stats.byPriority).map(([priority, count]) => (
-                <div key={priority} className="flex justify-between items-center">
-                  <span className="capitalize text-sm">{priority}</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(priority)}`}>
-                    {count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">By Type</h3>
-            <div className="space-y-2">
-              {Object.entries(stats.byTargetType).map(([type, count]) => (
-                <div key={type} className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    {getTargetIcon(type)}
-                    <span className="capitalize text-sm">{type}</span>
+          <Card className="bg-white border border-black rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-black">By Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(stats.byStatus).map(([status, count]) => (
+                  <div key={status} className="flex justify-between items-center">
+                    <span className="capitalize text-sm text-black">{status}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                      {count}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border border-black rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-black">By Priority</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(stats.byPriority).map(([priority, count]) => (
+                  <div key={priority} className="flex justify-between items-center">
+                    <span className="capitalize text-sm text-black">{priority}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(priority)}`}>
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border border-black rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-black">By Type</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(stats.byTargetType).map(([type, count]) => (
+                  <div key={type} className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      {getTargetIcon(type)}
+                      <span className="capitalize text-sm text-black">{type}</span>
+                    </div>
+                    <span className="text-sm font-medium text-black">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
-          </div>
-          
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="closed">Closed</option>
-          </select>
+      <Card className="bg-white border border-black rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-black">Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="bg-white">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center space-x-2">
+              <Filter className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-black">Filters:</span>
+            </div>
+            
+            <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all_status' ? '' : value }))}>
+              <SelectTrigger
+                className="
+                  w-full sm:w-48
+                  !bg-white text-black
+                  border border-black
+                  hover:!bg-white
+                  focus:!bg-white
+                  data-[state=open]:!bg-white
+                  [&>svg]:!text-black
+                  [&>svg]:!opacity-100
+                "
+              >
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-black border border-black shadow-lg">
+                <SelectItem
+                  value="all_status"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  All Status
+                </SelectItem>
+                <SelectItem
+                  value="pending"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Pending
+                </SelectItem>
+                <SelectItem
+                  value="reviewed"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Reviewed
+                </SelectItem>
+                <SelectItem
+                  value="closed"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Closed
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-          <select
-            value={filters.targetType}
-            onChange={(e) => setFilters(prev => ({ ...prev, targetType: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Types</option>
-            <option value="user">User</option>
-            <option value="project">Project</option>
-            <option value="comment">Comment</option>
-            <option value="chat">Chat</option>
-          </select>
+            <Select value={filters.targetType} onValueChange={(value) => setFilters(prev => ({ ...prev, targetType: value === 'all_types' ? '' : value }))}>
+              <SelectTrigger
+                className="
+                  w-full sm:w-48
+                  !bg-white text-black
+                  border border-black
+                  hover:!bg-white
+                  focus:!bg-white
+                  data-[state=open]:!bg-white
+                  [&>svg]:!text-black
+                  [&>svg]:!opacity-100
+                "
+              >
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-black border border-black shadow-lg">
+                <SelectItem
+                  value="all_types"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  All Types
+                </SelectItem>
+                <SelectItem
+                  value="user"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  User
+                </SelectItem>
+                <SelectItem
+                  value="project"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Project
+                </SelectItem>
+                <SelectItem
+                  value="comment"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Comment
+                </SelectItem>
+                <SelectItem
+                  value="chat"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Chat
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-          <select
-            value={filters.priority}
-            onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Priorities</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-          </select>
+            <Select value={filters.priority} onValueChange={(value) => setFilters(prev => ({ ...prev, priority: value === 'all_priorities' ? '' : value }))}>
+              <SelectTrigger
+                className="
+                  w-full sm:w-48
+                  !bg-white text-black
+                  border border-black
+                  hover:!bg-white
+                  focus:!bg-white
+                  data-[state=open]:!bg-white
+                  [&>svg]:!text-black
+                  [&>svg]:!opacity-100
+                "
+              >
+                <SelectValue placeholder="All Priorities" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-black border border-black shadow-lg">
+                <SelectItem
+                  value="all_priorities"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  All Priorities
+                </SelectItem>
+                <SelectItem
+                  value="low"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Low
+                </SelectItem>
+                <SelectItem
+                  value="medium"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Medium
+                </SelectItem>
+                <SelectItem
+                  value="high"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  High
+                </SelectItem>
+                <SelectItem
+                  value="critical"
+                  className="
+                    cursor-pointer
+                    hover:bg-blue-100
+                    focus:bg-blue-100
+                    data-[state=checked]:bg-blue-600
+                    data-[state=checked]:text-white
+                    data-[state=checked]:hover:bg-blue-600
+                  "
+                >
+                  Critical
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-          <div className="flex-1 max-w-xs">
-            <div className="relative">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search reports..."
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="flex-1 max-w-xs">
+              <div className="relative">
+                <Search className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" />
+                <Input
+                  placeholder="Search reports..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="
+                    !bg-white text-black pl-10
+                    border border-black
+                    opacity-100
+                    hover:!bg-white
+                    focus:!bg-white
+                    focus-visible:ring-0
+                    focus-visible:ring-offset-0
+                  "
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Error */}
       {error && (
@@ -372,172 +585,213 @@ const AdminReports: React.FC<AdminReportsProps> = ({ userRole }) => {
       )}
 
       {/* Reports Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Target
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reason
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reporter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {reports.map((report) => (
-                <tr key={report._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-3">
-                      {getTargetIcon(report.targetType)}
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {report.targetDetails?.title || report.targetId}
+      <Card className="bg-white border border-black rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-black">Reports ({pagination.total})</CardTitle>
+          <CardDescription className="text-black/70">
+            Showing {reports.length} of {pagination.total} reports
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-100 border-b border-black">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Target
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Reason
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Reporter
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Priority
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-black">
+                {reports.map((report) => (
+                  <tr key={report._id} className="hover:bg-gray-100">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 border border-black rounded-full flex items-center justify-center">
+                          {getTargetIcon(report.targetType)}
                         </div>
-                        <div className="text-xs text-gray-500 capitalize">
-                          {report.targetType}
+                        <div>
+                          <div className="text-sm font-medium text-black">
+                            {report.targetDetails?.title || report.targetId}
+                          </div>
+                          <div className="text-xs text-black/70 capitalize">
+                            {report.targetType}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 capitalize">
-                      {report.reason.replace('_', ' ')}
-                    </div>
-                    <div className="text-xs text-gray-500 truncate max-w-xs">
-                      {report.description}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{report.reporterName}</div>
-                    <div className="text-xs text-gray-500">{report.reporterEmail}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(report.status)}`}>
-                      {report.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(report.priority)}`}>
-                      {report.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(report.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setSelectedReport(report)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      
-                      {report.status === 'pending' && userRole === 'admin' && (
-                        <button
-                          onClick={() => handleReview(report._id)}
-                          className="text-yellow-600 hover:text-yellow-900"
-                          title="Mark as Reviewed"
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-black capitalize">
+                        {report.reason.replace('_', ' ')}
+                      </div>
+                      <div className="text-xs text-black/70 truncate max-w-xs">
+                        {report.description}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-black">{report.reporterName}</div>
+                      <div className="text-xs text-black/70">{report.reporterEmail}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(report.status)}`}>
+                        {report.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(report.priority)}`}>
+                        {report.priority}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black/70">
+                      {new Date(report.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => setSelectedReport(report)}
+                          className="
+                            text-blue-600 border-blue-600 border
+                            bg-white
+                            hover:text-white
+                            hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600
+                            hover:border-blue-600
+                          "
+                          title="View Details"
                         >
-                          <CheckCircle className="h-4 w-4" />
-                        </button>
-                      )}
-                      
-                      {userRole === 'super_admin' && report.status !== 'closed' && (
-                        <>
-                          <button
-                            onClick={() => handleDeleteContent(report._id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete Content"
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        
+                        {report.status === 'pending' && userRole === 'admin' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleReview(report._id)}
+                            className="
+                              text-yellow-600 border-yellow-600 border
+                              bg-white
+                              hover:text-white
+                              hover:bg-gradient-to-r hover:from-yellow-400 hover:to-yellow-600
+                              hover:border-yellow-600
+                            "
+                            title="Mark as Reviewed"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              const reason = prompt('Enter ban reason:');
-                              if (reason) handleBanUser(report._id, 'ban', reason);
-                            }}
-                            className="text-red-600 hover:text-red-900"
-                            title="Ban User"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {pagination.pages > 1 && (
-          <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
-                disabled={pagination.page === pagination.pages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
-                  <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
-                  <span className="font-medium">{pagination.total}</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setPagination(prev => ({ ...prev, page }))}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        page === pagination.page
-                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-            </div>
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {userRole === 'super_admin' && report.status !== 'closed' && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleDeleteContent(report._id)}
+                              className="
+                                text-red-600 border-red-600 border
+                                bg-white
+                                hover:text-white
+                                hover:bg-gradient-to-r hover:from-red-400 hover:to-red-600
+                                hover:border-red-600
+                              "
+                              title="Delete Content"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const reason = prompt('Enter ban reason:');
+                                if (reason) handleBanUser(report._id, 'ban', reason);
+                              }}
+                              className="
+                                text-red-600 border-red-600 border
+                                bg-white
+                                hover:text-white
+                                hover:bg-gradient-to-r hover:from-red-400 hover:to-red-600
+                                hover:border-red-600
+                              "
+                              title="Ban User"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {/* Pagination */}
+          {pagination.pages > 1 && (
+            <div className="bg-gray-100 px-6 py-3 flex items-center justify-between border-t border-black">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <Button
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                  disabled={pagination.page === 1}
+                  className="text-black border-black hover:text-white hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600"
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                  disabled={pagination.page === pagination.pages}
+                  className="text-black border-black hover:text-white hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600"
+                >
+                  Next
+                </Button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-black/70">
+                    Showing <span className="font-medium text-black">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
+                    <span className="font-medium text-black">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+                    <span className="font-medium text-black">{pagination.total}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        onClick={() => setPagination(prev => ({ ...prev, page }))}
+                        className={`
+                          relative inline-flex items-center px-4 py-2 border text-sm font-medium
+                          ${
+                            page === pagination.page
+                              ? 'z-10 bg-blue-600 border-blue-600 text-white'
+                              : 'bg-white border-black text-black hover:bg-blue-100'
+                          }
+                        `}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Report Detail Modal */}
       {selectedReport && (
@@ -588,55 +842,57 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-black">
+        <div className="p-6 border-b border-black">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Report Details</h2>
-            <button
+            <h2 className="text-xl font-semibold text-black">Report Details</h2>
+            <Button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-black border-black bg-white hover:text-white hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600"
             >
               <XCircle className="h-6 w-6" />
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="p-6 space-y-6">
           {/* Target Information */}
           <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Target Information</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-black mb-3">Target Information</h3>
+            <div className="bg-gray-100 p-4 rounded-lg border border-black">
               <div className="flex items-center space-x-3 mb-2">
-                {(() => {
-                  switch (report.targetType) {
-                    case 'user': return <User className="h-5 w-5 text-blue-600" />;
-                    case 'project': return <FileText className="h-5 w-5 text-green-600" />;
-                    case 'comment': return <MessageSquare className="h-5 w-5 text-purple-600" />;
-                    case 'chat': return <MessageSquare className="h-5 w-5 text-orange-600" />;
-                    default: return <Flag className="h-5 w-5 text-red-600" />;
-                  }
-                })()}
-                <span className="font-medium capitalize">{report.targetType}</span>
+                <div className="w-10 h-10 border border-black rounded-full flex items-center justify-center">
+                  {(() => {
+                    switch (report.targetType) {
+                      case 'user': return <User className="h-5 w-5 text-blue-600" />;
+                      case 'project': return <FileText className="h-5 w-5 text-green-600" />;
+                      case 'comment': return <MessageSquare className="h-5 w-5 text-purple-600" />;
+                      case 'chat': return <MessageSquare className="h-5 w-5 text-orange-600" />;
+                      default: return <Flag className="h-5 w-5 text-red-600" />;
+                    }
+                  })()}
+                </div>
+                <span className="font-medium capitalize text-black">{report.targetType}</span>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(report.priority)}`}>
                   {report.priority}
                 </span>
               </div>
-              <p className="text-sm text-gray-900 font-medium">
+              <p className="text-sm text-black font-medium">
                 {report.targetDetails?.title || report.targetId}
               </p>
               {report.targetDetails?.description && (
-                <p className="text-sm text-gray-600 mt-1">{report.targetDetails.description}</p>
+                <p className="text-sm text-black/70 mt-1">{report.targetDetails.description}</p>
               )}
               {report.targetDetails?.content && (
-                <p className="text-sm text-gray-600 mt-1 italic">{report.targetDetails.content}</p>
+                <p className="text-sm text-black/70 mt-1 italic">{report.targetDetails.content}</p>
               )}
             </div>
           </div>
 
           {/* Report Reason */}
           <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Report Reason</h3>
-            <div className="bg-red-50 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-black mb-3">Report Reason</h3>
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
               <div className="flex items-center space-x-2 mb-2">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
                 <span className="font-medium capitalize text-red-900">
@@ -649,11 +905,11 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
           {/* Reporter Information */}
           <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Reporter Information</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm font-medium text-gray-900">{report.reporterName}</p>
-              <p className="text-sm text-gray-600">{report.reporterEmail}</p>
-              <p className="text-xs text-gray-500 mt-1">
+            <h3 className="text-sm font-medium text-black mb-3">Reporter Information</h3>
+            <div className="bg-gray-100 p-4 rounded-lg border border-black">
+              <p className="text-sm font-medium text-black">{report.reporterName}</p>
+              <p className="text-sm text-black/70">{report.reporterEmail}</p>
+              <p className="text-xs text-black/70 mt-1">
                 Reported on {new Date(report.createdAt).toLocaleDateString()} at {new Date(report.createdAt).toLocaleTimeString()}
               </p>
             </div>
@@ -661,19 +917,19 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
           {/* Status and Actions */}
           <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Status & Actions</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-black mb-3">Status & Actions</h3>
+            <div className="bg-gray-100 p-4 rounded-lg border border-black">
               <div className="flex items-center space-x-3 mb-4">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(report.status)}`}>
                   {report.status.toUpperCase()}
                 </span>
                 {report.handledBy && (
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-black/70">
                     Handled by admin
                   </span>
                 )}
                 {report.resolvedBy && (
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-black/70">
                     Resolved by super admin
                   </span>
                 )}
@@ -681,42 +937,42 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
               {report.resolutionNotes && (
                 <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-1">Resolution Notes:</p>
-                  <p className="text-sm text-gray-600">{report.resolutionNotes}</p>
+                  <p className="text-sm font-medium text-black mb-1">Resolution Notes:</p>
+                  <p className="text-sm text-black/70">{report.resolutionNotes}</p>
                 </div>
               )}
 
               {/* Action Buttons */}
               <div className="space-y-3">
                 {report.status === 'pending' && userRole === 'admin' && (
-                  <button
+                  <Button
                     onClick={() => onReview(report._id)}
                     disabled={loading}
-                    className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
+                    className="w-full bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50"
                   >
                     Mark as Reviewed
-                  </button>
+                  </Button>
                 )}
 
                 {userRole === 'super_admin' && report.status !== 'closed' && (
                   <div className="grid grid-cols-2 gap-3">
-                    <button
+                    <Button
                       onClick={() => onDeleteContent(report._id)}
                       disabled={loading}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       Delete Content
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => {
                         const reason = prompt('Enter ban reason:');
                         if (reason) onBanUser(report._id, 'ban', reason);
                       }}
                       disabled={loading}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                      className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       Ban User
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -726,16 +982,21 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Add resolution notes..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="
+                        w-full px-3 py-2 border border-black rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                        !bg-white text-black
+                        hover:!bg-white
+                        focus:!bg-white
+                      "
                       rows={3}
                     />
-                    <button
+                    <Button
                       onClick={handleCloseReport}
                       disabled={loading || !notes.trim()}
-                      className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                      className="w-full bg-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
                     >
                       Close Report
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>

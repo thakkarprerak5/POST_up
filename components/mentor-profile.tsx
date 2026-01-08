@@ -53,13 +53,23 @@ export function MentorProfile({ mentor, isOwner = false }: MentorProfileProps) {
       <Card className="bg-card border-border overflow-hidden">
         {/* Banner */}
         <div 
-          className="h-32 w-full bg-cover bg-center bg-no-repeat relative"
+          className="h-32 w-full relative"
           style={{
-            backgroundImage: mentor.bannerImage ? `url(${mentor.bannerImage})` : undefined,
-            backgroundColor: mentor.bannerColor || undefined
+            backgroundColor: mentor.bannerImage ? 'transparent' : (mentor.bannerColor || '#3b82f6'),
+            backgroundImage: mentor.bannerImage ? `url(${mentor.bannerImage})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
           }}
         >
+          {/* Test color block */}
           {!mentor.bannerImage && (
+            <div 
+              className="absolute inset-0"
+              style={{ backgroundColor: mentor.bannerColor || '#3b82f6' }}
+            />
+          )}
+          {!mentor.bannerImage && !mentor.bannerColor && (
             <div className="w-full h-full bg-muted flex items-center justify-center">
               <span className="text-muted-foreground">No Banner</span>
             </div>
@@ -72,15 +82,15 @@ export function MentorProfile({ mentor, isOwner = false }: MentorProfileProps) {
               <Image
                 src={mentor.avatar || "/placeholder.svg"}
                 alt={mentor.name}
-                width={80}
-                height={80}
+                width={190}
+                height={190}
                 className="rounded-full object-cover border-2 border-border bg-background"
               />
               {isOwner && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0 bg-background"
+                  className="absolute -bottom-4 -right-2 rounded-full w-8 h-8 p-0 bg-background"
                   onClick={() => router.push('/profile/edit')}
                   title="Edit profile"
                 >

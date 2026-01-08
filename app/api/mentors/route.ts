@@ -5,7 +5,15 @@ import User from '@/models/User';
 export async function GET() {
   try {
     await connectDB();
-    const mentors = await User.find({ type: 'mentor' })
+    // Get mentors plus any admins/super admins who were originally mentors
+    // This ensures mentors always remain in the list even when promoted to admin
+    const mentors = await User.find({ 
+      $or: [
+        { type: 'mentor' },
+        { type: 'admin' },
+        { type: 'super_admin' }
+      ]
+    })
       .select('fullName email photo profile followerCount followingCount')
       .lean()
       .exec();

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { AlertCircle, ExternalLink, Github } from 'lucide-react';
+import { AlertCircle, ExternalLink, Github, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -24,6 +24,7 @@ interface IProject {
     name: string;
     email: string;
     avatar?: string;
+    image?: string;
   };
   images: string[];
   tags: string[];
@@ -242,6 +243,17 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-4xl mx-auto">
+        {/* Back Button */}
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span>Back to Projects</span>
+          </Link>
+        </div>
+
         {/* Header */}
         <div 
           className="mb-6"
@@ -267,6 +279,20 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   height={24}
                   className="rounded-full w-6 h-6"
                 />
+              )}
+              {!project.author.avatar && project.author.image && (
+                <Image
+                  src={project.author.image}
+                  alt={project.author.name}
+                  width={24}
+                  height={24}
+                  className="rounded-full w-6 h-6"
+                />
+              )}
+              {!project.author.avatar && !project.author.image && (
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs">
+                  {project.author.name ? project.author.name.charAt(0).toUpperCase() : 'U'}
+                </div>
               )}
               <span>{project.author.name}</span>
             </Link>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Ganpat Avatar Component</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+        .author-info { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        .project-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .loading { background: #fff3cd; border-color: #ffeaa7; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Test Ganpat Avatar Component</h1>
+    
+    <div class="test">
+        <h3>Test 1: Direct API Check</h3>
+        <div id="api-result">Loading...</div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: Simulated GanpatAvatar</h3>
+        <div id="avatar-result">Loading...</div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 3: Browser Console Check</h3>
+        <p>Open browser console (F12) and look for:</p>
+        <ul>
+            <li>"Direct fetch: Getting ganpat profile photo"</li>
+            <li>"Found ganpat project with image"</li>
+            <li>"GanpatAvatar: Image loaded successfully"</li>
+            <li>Any JavaScript errors</li>
+        </ul>
+        <button onclick="refreshPage()">Refresh Page</button>
+    </div>
+
+    <script>
+        // Simulate the GanpatAvatar component logic
+        class SimulatedGanpatAvatar {
+            constructor() {
+                this.profilePhoto = '/placeholder-user.jpg';
+                this.loading = true;
+                this.error = false;
+            }
+            
+            async fetchProfilePhoto() {
+                try {
+                    this.loading = true;
+                    console.log('🔍 Direct fetch: Getting ganpat profile photo...');
+                    
+                    const response = await fetch('/api/projects');
+                    const projects = await response.json();
+                    const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                    
+                    if (ganpatProject && ganpatProject.author?.image) {
+                        console.log('✅ Found ganpat project with image:', ganpatProject.author.image);
+                        this.profilePhoto = ganpatProject.author.image;
+                    } else {
+                        console.log('⚠️ No image found in project, using placeholder');
+                        this.profilePhoto = '/placeholder-user.jpg';
+                    }
+                } catch (error) {
+                    console.log('❌ Error fetching profile photo:', error);
+                    this.profilePhoto = '/placeholder-user.jpg';
+                } finally {
+                    this.loading = false;
+                }
+                
+                this.render();
+            }
+            
+            handleImageError() {
+                console.log('GanpatAvatar: Image failed to load:', this.profilePhoto);
+                this.error = true;
+                this.render();
+            }
+            
+            handleImageLoad() {
+                console.log('GanpatAvatar: Image loaded successfully:', this.profilePhoto);
+                this.error = false;
+                this.render();
+            }
+            
+            render() {
+                const avatarResult = document.getElementById('avatar-result');
+                
+                if (this.loading) {
+                    avatarResult.innerHTML = `
+                        <div class="loading">
+                            <div class="author-info">
+                                <div class="avatar" style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#e5e7eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    color: '#6b7280'
+                                }}>
+                                    G
+                                </div>
+                                <div>
+                                    <div><strong>Ganpat</strong></div>
+                                    <small>Loading...</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (this.error || !this.profilePhoto) {
+                    avatarResult.innerHTML = `
+                        <div class="error">
+                            <div class="author-info">
+                                <div class="avatar" style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#e5e7eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    color: '#6b7280'
+                                }}>
+                                    G
+                                </div>
+                                <div>
+                                    <div><strong>Ganpat</strong></div>
+                                    <small>Error loading photo</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    avatarResult.innerHTML = `
+                        <div class="success">
+                            <div class="author-info">
+                                <img 
+                                    src="${this.profilePhoto}" 
+                                    alt="Ganpat"
+                                    className="avatar"
+                                    onerror="window.handleImageError()"
+                                    onload="window.handleImageLoad()"
+                                />
+                                <div>
+                                    <div><strong>Ganpat</strong></div>
+                                    <small>Profile photo loaded</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // Create simulated component
+        const ganpatAvatar = new SimulatedGanpatAvatar();
+        
+        // Test API
+        async function testAPI() {
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                
+                const apiResult = document.getElementById('api-result');
+                
+                if (ganpatProject) {
+                    apiResult.innerHTML = `
+                        <div class="success">
+                            ✅ Found ganpat project in API:<br>
+                            Title: ${ganpatProject.title}<br>
+                            Author Name: ${ganpatProject.author.name}<br>
+                            Author Image: ${ganpatProject.author.image || 'NOT SET'}<br>
+                            Author Avatar: ${ganpatProject.author.avatar || 'NOT SET'}
+                        </div>
+                    `;
+                } else {
+                    apiResult.innerHTML = `
+                        <div class="error">
+                            ❌ Ganpat project not found in API
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                apiResult.innerHTML = `
+                    <div class="error">
+                        ❌ API Error: ${error.message}
+                    </div>
+                `;
+                }
+            }
+        }
+        
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        // Global handlers for image events
+        window.handleImageError = () => ganpatAvatar.handleImageError();
+        window.handleImageLoad = () => ganpatAvatar.handleImageLoad();
+        
+        // Run tests
+        window.onload = () => {
+            console.log('🔍 Starting Ganpat Avatar Test');
+            testAPI();
+            ganpatAvatar.fetchProfilePhoto();
+            
+            console.log('🎯 Test Instructions:');
+            console.log('1. Check if API test shows success');
+            console.log('2. Check if avatar shows profile photo');
+            console.log('3. Check browser console for loading messages');
+            console.log('4. If all pass, the main page should work too');
+        };
+    </script>
+</body>
+</html>

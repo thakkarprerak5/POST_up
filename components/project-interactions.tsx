@@ -69,6 +69,12 @@ export function ProjectInteractions({
   const fetchUserProfile = async (userId: string) => {
     if (userProfiles[userId] || !userId) return userProfiles[userId];
     
+    // Skip invalid user IDs
+    if (!userId || userId === 'test-user-id' || userId === 'test-user-123' || userId === 'test-user') {
+      console.log('Skipping invalid user ID:', userId);
+      return { name: 'Unknown User', image: undefined };
+    }
+    
     try {
       const response = await fetch(`/api/profile?id=${userId}`);
       if (response.ok) {

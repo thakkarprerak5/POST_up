@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   Shield,
-  ArrowLeft
+  ArrowLeft,
+  MessageSquare
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'User Management', href: '/admin/users', icon: Users },
   { name: 'Project Moderation', href: '/admin/projects', icon: FolderOpen },
   { name: 'Reports & Abuse', href: '/admin/reports', icon: AlertTriangle },
+  { name: 'Comment Management', href: '/admin/comments', icon: MessageSquare },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Activity Logs', href: '/admin/activity', icon: Shield, superAdminOnly: true },
   { name: 'System Settings', href: '/admin/settings', icon: Settings, superAdminOnly: true },
@@ -52,10 +54,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const isSuperAdmin = session?.user?.role === 'super_admin';
-
-  const filteredNavigation = navigation.filter(item => 
-    !item.superAdminOnly || isSuperAdmin
-  );
+  const filteredNavigation = navigation.filter(item => !item.superAdminOnly || isSuperAdmin);
 
   if (status === 'loading') {
     return (
@@ -66,28 +65,28 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Mobile sidebar */}
       <div className={cn(
         "fixed inset-0 z-50 lg:hidden",
         sidebarOpen ? "block" : "hidden"
       )}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50" onClick={() => setSidebarOpen(false)} />
+        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white shadow-lg">
           <div className="absolute top-0 right-0 -mr-12 pt-2">
             <button
               type="button"
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
               onClick={() => setSidebarOpen(false)}
             >
-              <X className="h-6 w-6 text-white" />
+              <X className="h-6 w-6 text-black transition-colors hover:text-white" />
             </button>
           </div>
           <SidebarContent 
             navigation={filteredNavigation} 
-            pathname={pathname || ''}
-            session={session}
-            onSignOut={handleSignOut}
+            pathname={pathname || ''} 
+            session={session} 
+            onSignOut={handleSignOut} 
           />
         </div>
       </div>
@@ -96,9 +95,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
         <SidebarContent 
           navigation={filteredNavigation} 
-          pathname={pathname || ''}
-          session={session}
-          onSignOut={handleSignOut}
+          pathname={pathname || ''} 
+          session={session} 
+          onSignOut={handleSignOut} 
         />
       </div>
 
@@ -109,10 +108,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Mobile menu button */}
           <button
             type="button"
-            className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden"
+            className="px-4 border-r border-gray-200 text-black focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-6 w-6 transition-colors hover:text-white" />
           </button>
           
           <div className="flex-1 flex justify-between px-4 sm:px-6 lg:px-8">
@@ -120,10 +119,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <div className="w-full flex md:ml-0">
                 <div className="relative w-full text-gray-400 focus-within:text-gray-600">
                   <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
-                    <LayoutDashboard className="h-5 w-5" />
+                    <LayoutDashboard className="h-5 w-5 text-black transition-colors hover:text-white" />
                   </div>
                   <input
-                    className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm"
+                    className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-black placeholder-gray-500 focus:outline-none focus:ring-0 sm:text-sm"
                     placeholder="Admin Panel"
                     readOnly
                   />
@@ -134,12 +133,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {/* Back to Main App Button - Mobile */}
             <div className="lg:hidden">
               <Button
-                variant="ghost"
                 size="sm"
                 onClick={() => router.push('/')}
-                className="text-gray-600 hover:text-gray-900"
+                className="w-full justify-start text-black bg-white  hover:text-white transition-colors"
               >
-                <ArrowLeft className="h-4 w-4 mr-1" />
+                <ArrowLeft className="h-4 w-4 mr-2 transition-colors" />
                 Back
               </Button>
             </div>
@@ -147,7 +145,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         {/* Main content area */}
-        <main className="flex-1">
+        <main className="flex-1 bg-blue-50">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {children}
@@ -171,25 +169,25 @@ function SidebarContent({ navigation, pathname, session, onSignOut }: SidebarCon
   const router = useRouter();
 
   return (
-    <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
+    <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto bg-white border-r border-gray-100">
       <div className="flex-shrink-0 flex items-center px-4">
-        <Shield className="h-8 w-8 text-blue-600" />
-        <h1 className="ml-3 text-xl font-bold text-gray-900">POST_up Admin</h1>
+        <Shield className="h-8 w-8 text-black transition-colors hover:text-white" />
+        <h1 className="ml-3 text-xl font-bold text-black">POST-UP Admin</h1>
       </div>
       
       {/* Back to Main App Button */}
       <div className="px-2 mt-4 mb-2">
         <Button
-          variant="outline"
           size="sm"
           onClick={() => router.push('/')}
-          className="w-full justify-start text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300"
+          className="w-full justify-start text-black bg-white hover:bg-gradient-to-r from-blue-400 to-blue-600 hover:text-white transition-colors"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="h-4 w-4 mr-2 transition-colors" />
           Back to Main App
         </Button>
       </div>
-      
+
+      {/* Sidebar navigation */}
       <nav className="px-2 space-y-1">
         {navigation.map((item) => {
           const isActive = pathname === item.href;
@@ -199,16 +197,13 @@ function SidebarContent({ navigation, pathname, session, onSignOut }: SidebarCon
               href={item.href}
               className={cn(
                 isActive
-                  ? 'bg-blue-100 text-blue-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                'group flex items-center px-2 py-2 text-sm font-medium rounded-md'
+                  ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white'
+                  : 'text-black hover:text-white hover:bg-gradient-to-r hover:from-blue-400 hover:to-blue-600',
+                'group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors'
               )}
             >
               <item.icon
-                className={cn(
-                  isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500',
-                  'mr-3 flex-shrink-0 h-5 w-5'
-                )}
+                className="mr-3 h-5 w-5 transition-colors"
               />
               {item.name}
               {item.superAdminOnly && (
@@ -231,21 +226,16 @@ function SidebarContent({ navigation, pathname, session, onSignOut }: SidebarCon
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {session?.user?.name || 'Admin User'}
-            </p>
-            <p className="text-xs text-gray-500 truncate">
-              {isSuperAdmin ? 'Super Admin' : 'Admin'}
-            </p>
+            <p className="text-sm font-medium text-black truncate">{session?.user?.name || 'Admin User'}</p>
+            <p className="text-xs text-gray-500 truncate">{isSuperAdmin ? 'Super Admin' : 'Admin'}</p>
           </div>
         </div>
         <Button
-          variant="ghost"
           size="sm"
           onClick={onSignOut}
-          className="w-full mt-3 justify-start"
+          className="w-full mt-3 justify-start text-white bg-gradient-to-r from-blue-400 to-blue-600 hover:text-white transition-colors"
         >
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-4 w-4 mr-2 transition-colors" />
           Sign out
         </Button>
       </div>

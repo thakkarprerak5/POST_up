@@ -46,14 +46,34 @@ export async function GET(request: Request) {
       });
     }
 
-    recentProjects.forEach((project: any) => {
-      activities.push({
+    // Get user data for all projects (same logic as projects API)
+    const activitiesWithUserData = await Promise.all(recentProjects.map(async (project: any) => {
+      let userAvatar = null;
+      
+      // Fetch the user's actual data from database
+      if (project.author?.name) {
+        try {
+          const user = await User.findOne({ fullName: project.author.name }).exec();
+          if (user && user.photo && user.photo !== '/placeholder-user.jpg') {
+            userAvatar = user.photo;
+          } else {
+            // Fallback to null (will show initial letter)
+            userAvatar = null;
+          }
+        } catch (error) {
+          // If user lookup fails, keep original value
+          console.log('User lookup failed for:', project.author.name);
+          userAvatar = project.author?.avatar || null;
+        }
+      }
+
+      return {
         _id: `project_${project._id}`,
         type: 'project_upload',
         user: {
           _id: project.author?.id,
           name: project.author?.name,
-          avatar: project.author?.avatar
+          avatar: userAvatar
         },
         project: {
           _id: project._id,
@@ -61,8 +81,10 @@ export async function GET(request: Request) {
         },
         timestamp: project.createdAt,
         description: `uploaded "${project.title}"`
-      });
-    });
+      };
+    }));
+
+    activities.push(...activitiesWithUserData);
 
     // Sort by timestamp descending and limit
     activities.sort(

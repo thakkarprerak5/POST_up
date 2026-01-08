@@ -11,6 +11,7 @@ export interface IProject extends Document {
     id: string;
     name: string;
     image?: string;
+    avatar?: string;
   };
   likes: string[]; // array of user IDs who liked
   likeCount: number;
@@ -43,6 +44,7 @@ const ProjectSchema = new Schema<IProject>({
     id: { type: String, required: true },
     name: { type: String, required: true },
     image: { type: String },
+    avatar: { type: String },
   },
   likes: { type: [String], default: [] },
   likeCount: { type: Number, default: 0 },

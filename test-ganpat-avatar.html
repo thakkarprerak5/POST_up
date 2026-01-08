@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Ganpat Avatar</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; }
+        .author-info { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .project-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Test Ganpat Avatar</h1>
+    
+    <div class="test">
+        <h3>Test 1: Direct Image Test</h3>
+        <div class="author-info">
+            <img src="/placeholder-user.jpg" alt="Direct Test" class="avatar" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div style="display: none; width: 40px; height: 40px; background: #ccc; border-radius: 50%; align-items: center; justify-content: center;">
+                D
+            </div>
+            <div>
+                <div><strong>Direct Image Test</strong></div>
+                <small>Testing /placeholder-user.jpg directly</small>
+            </div>
+        </div>
+        <div id="direct-result" class="debug">Loading...</div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: API Data Test</h3>
+        <div id="api-test-result">Loading...</div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 3: Browser Console Check</h3>
+        <p>Open browser console (F12) and look for:</p>
+        <ul>
+            <li>SimpleAvatar image loading messages</li>
+            <li>Any image loading errors</li>
+            <li>Network tab image requests</li>
+        </ul>
+        <button onclick="refreshPage()">Refresh Page</button>
+    </div>
+
+    <script>
+        // Test 1: Direct image loading
+        const directImg = document.querySelector('img[src="/placeholder-user.jpg"]');
+        directImg.addEventListener('load', () => {
+            document.getElementById('direct-result').innerHTML = '✅ Direct image loaded successfully';
+        });
+        directImg.addEventListener('error', () => {
+            document.getElementById('direct-result').innerHTML = '❌ Direct image failed to load';
+        });
+        
+        // Test 2: API data test
+        async function testApiData() {
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                
+                if (ganpatProject) {
+                    const resultDiv = document.getElementById('api-test-result');
+                    resultDiv.innerHTML = `
+                        <div class="debug">
+                            API Response:<br>
+                            Title: ${ganpatProject.title}<br>
+                            Author Name: ${ganpatProject.author.name}<br>
+                            Author Image: ${ganpatProject.author.image || 'NOT SET'}<br>
+                            Author Avatar: ${ganpatProject.author.avatar || 'NOT SET'}
+                        </div>
+                        <div class="project-card">
+                            <h4>${ganpatProject.title}</h4>
+                            <div class="author-info">
+                                <img src="${ganpatProject.author.image || ganpatProject.author.avatar}" 
+                                     alt="${ganpatProject.author.name}" class="avatar"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                                <div style="display: none; width: 40px; height: 40px; background: #ccc; border-radius: 50%; align-items: center; justify-content: center;">
+                                    ${ganpatProject.author.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div><strong>${ganpatProject.author.name}</strong></div>
+                                    <small>API Image Test</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add event listeners to the dynamically created image
+                    const apiImg = resultDiv.querySelector('img');
+                    apiImg.addEventListener('load', () => {
+                        resultDiv.innerHTML += '<div class="debug">✅ API image loaded successfully</div>';
+                    });
+                    apiImg.addEventListener('error', (e) => {
+                        resultDiv.innerHTML += `<div class="debug">❌ API image failed to load: ${e.message}</div>`;
+                    });
+                } else {
+                    document.getElementById('api-test-result').innerHTML = '❌ Ganpat project not found in API';
+                }
+            } catch (error) {
+                document.getElementById('api-test-result').innerHTML = `❌ API Error: ${error.message}`;
+            }
+        }
+        
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        // Run tests
+        window.onload = async () => {
+            await testApiData();
+            
+            // Add console log instructions
+            console.log('🔍 Debugging Ganpat Avatar');
+            console.log('1. Check if SimpleAvatar component logs appear in console');
+            console.log('2. Look for any image loading errors');
+            console.log('3. Check Network tab for image requests');
+            console.log('4. Refresh the main page to see if avatar appears');
+        };
+    </script>
+</body>
+</html>

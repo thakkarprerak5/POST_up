@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Project from '@/models/Project';
 import User from '@/models/User';
+import mongoose from 'mongoose';
 
 export async function POST() {
   try {
@@ -30,12 +31,12 @@ export async function POST() {
 
     // Update all projects where the author matches the current user's ID
     const result = await Project.updateMany(
-      { 'author._id': session.user.id },
+      { 'author.id': session.user.id },
       { 
         $set: { 
           'author.name': user.fullName,
-          'author.avatar': user.photo || null,
-          'author.username': user.username || `@${user.fullName.toLowerCase().replace(/\s+/g, '')}`
+          'author.image': user.photo || null,
+          'author.username': user.email?.split('@')[0] || `@${user.fullName.toLowerCase().replace(/\s+/g, '')}`
         } 
       }
     );

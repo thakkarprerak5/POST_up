@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Ganpat Profile Photo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; }
+        .project-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .author-info { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ Test Ganpat Profile Photo</h1>
+    
+    <div class="test">
+        <h3>Test 1: Check All Projects</h3>
+        <button onclick="testAllProjects()">Test All Projects</button>
+        <div id="all-projects-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: Check Ganpat Project</h3>
+        <button onclick="testGanpatProject()">Test Ganpat Project</button>
+        <div id="ganpat-result"></div>
+    </div>
+
+    <script>
+        async function testAllProjects() {
+            const result = document.getElementById('all-projects-result');
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                
+                let html = `<div class="success">✅ Found ${projects.length} projects</div>`;
+                
+                projects.forEach((project, index) => {
+                    html += `
+                        <div class="project-card">
+                            <h4>${project.title}</h4>
+                            <div class="author-info">
+                                ${project.author.image ? 
+                                    `<img src="${project.author.image}" alt="${project.author.name}" class="avatar" />` : 
+                                    `<div class="avatar" style="background: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">${project.author.name.charAt(0).toUpperCase()}</div>`
+                                }
+                                <div>
+                                    <div><strong>${project.author.name}</strong></div>
+                                    <small>Image: ${project.author.image ? '✅' : '❌'}</small>
+                                    <small>Avatar: ${project.author.avatar ? '✅' : '❌'}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                result.innerHTML = html;
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testGanpatProject() {
+            const result = document.getElementById('ganpat-result');
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                
+                if (ganpatProject) {
+                    result.innerHTML = `
+                        <div class="success">
+                            ✅ Found ganpat project!<br>
+                            <div class="project-card">
+                                <h4>${ganpatProject.title}</h4>
+                                <div class="author-info">
+                                    ${ganpatProject.author.image ? 
+                                        `<img src="${ganpatProject.author.image}" alt="${ganpatProject.author.name}" class="avatar" />` : 
+                                        `<div class="avatar" style="background: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">${ganpatProject.author.name.charAt(0).toUpperCase()}</div>`
+                                    }
+                                    <div>
+                                        <div><strong>${ganpatProject.author.name}</strong></div>
+                                        <small>Image: ${ganpatProject.author.image ? '✅' : '❌'}</small>
+                                        <small>Avatar: ${ganpatProject.author.avatar ? '✅' : '❌'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Test project detail page
+                    testProjectDetail(ganpatProject._id || ganpatProject.id);
+                } else {
+                    result.innerHTML = '<div class="error">❌ Ganpat project not found</div>';
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testProjectDetail(projectId) {
+            try {
+                const response = await fetch(`/api/projects/${projectId}`);
+                const project = await response.json();
+                
+                console.log('Project Detail Response:', project);
+                
+                // Update the ganpat result with project detail info
+                const ganpatResult = document.getElementById('ganpat-result');
+                const currentContent = ganpatResult.innerHTML;
+                
+                ganpatResult.innerHTML = currentContent + `
+                    <br>
+                    <div class="project-card">
+                        <h4>Project Detail Test</h4>
+                        <div class="author-info">
+                            ${project.author.image ? 
+                                `<img src="${project.author.image}" alt="${project.author.name}" class="avatar" />` : 
+                                `<div class="avatar" style="background: #ccc; display: flex; align-items: center; justify-content: center; color: #666;">${project.author.name.charAt(0).toUpperCase()}</div>`
+                            }
+                            <div>
+                                <div><strong>${project.author.name}</strong></div>
+                                <small>Detail Image: ${project.author.image ? '✅' : '❌'}</small>
+                                <small>Detail Avatar: ${project.author.avatar ? '✅' : '❌'}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Project detail test error:', error);
+            }
+        }
+        
+        // Auto-run tests
+        window.onload = () => {
+            testAllProjects();
+        };
+    </script>
+</body>
+</html>

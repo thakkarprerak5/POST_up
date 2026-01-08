@@ -651,6 +651,7 @@ function FeedCard({ project }: { project: any }) {
               project={{
                 id: project.id || project._id,
                 author: {
+                  id: project.author?.id,
                   name: authorName,
                   avatar: authorImage,
                   username: "@user",

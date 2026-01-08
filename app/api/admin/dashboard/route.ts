@@ -39,12 +39,12 @@ export async function GET(request: NextRequest) {
       recentReports,
       activityLogs
     ] = await Promise.all([
-      User.countDocuments({ isActive: true }),
+      User.countDocuments({ $or: [{ isActive: true }, { isActive: { $exists: false } }] }),
       Project.countDocuments({ isDeleted: { $ne: true } }),
       Report.countDocuments(),
-      User.countDocuments({ type: 'student', isActive: true }),
-      User.countDocuments({ type: 'mentor', isActive: true }),
-      User.countDocuments({ type: { $in: ['admin', 'super_admin'] }, isActive: true }),
+      User.countDocuments({ type: 'student', $or: [{ isActive: true }, { isActive: { $exists: false } }] }),
+      User.countDocuments({ type: 'mentor', $or: [{ isActive: true }, { isActive: { $exists: false } }] }),
+      User.countDocuments({ type: { $in: ['admin', 'super_admin'] }, $or: [{ isActive: true }, { isActive: { $exists: false } }] }),
       Project.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(5),
       Report.find().sort({ createdAt: -1 }).limit(5),
       isSuperAdmin(adminInfo.userRole) 

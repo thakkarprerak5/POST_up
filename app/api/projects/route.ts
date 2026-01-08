@@ -88,8 +88,28 @@ export async function GET(request: Request) {
   }
   
   // Serialize MongoDB documents to include _id as string and likedByUser status
-  const serializedProjects = finalProjects.map((project: IProject & { _id: any }) => {
+  const serializedProjects = await Promise.all(finalProjects.map(async (project: IProject & { _id: any }) => {
     const projectObj = project.toObject();
+    
+    // FIX: Get actual user data for ALL users
+    if (projectObj.author?.name) {
+      try {
+        // Fetch the user's actual data from database
+        const user = await User.findOne({ fullName: projectObj.author.name }).exec();
+        if (user && user.photo && user.photo !== '/placeholder-user.jpg') {
+          projectObj.author.image = user.photo;
+          projectObj.author.avatar = user.photo;
+        } else {
+          // Fallback to null (will show initial letter)
+          projectObj.author.image = null;
+          projectObj.author.avatar = null;
+        }
+      } catch (error) {
+        // If user lookup fails, keep original values
+        console.log('User lookup failed for:', projectObj.author.name);
+      }
+    }
+    
     let likedByUser = false;
     
     if (currentUser) {
@@ -99,89 +119,117 @@ export async function GET(request: Request) {
       
       likedByUser = likesArray.some(likeId => {
         const likeIdStr = likeId.toString();
-        
-        // Handle both string and ObjectId comparison
-        let isMatch = likeIdStr === userIdStr;
-        
-        // If likeId is an ObjectId with equals method, use that too
-        if (likeId && typeof likeId === 'object' && typeof (likeId as any).equals === 'function') {
-          try {
-            isMatch = isMatch || (likeId as any).equals(currentUser._id);
-          } catch (e) {
-            // If equals fails, fall back to string comparison
-          }
-        }
-        
-        return isMatch;
+        return likeIdStr === userIdStr;
       });
     }
     
     return {
       ...projectObj,
-      _id: project._id.toString(),
-      id: project._id.toString(), // Add id field for compatibility
-      likedByUser: likedByUser
+      _id: projectObj._id.toString(),
+      likedByUser,
+      likeCount: Array.isArray(project.likes) ? project.likes.length : 0,
+      commentsCount: project.comments?.length || 0,
+      shareCount: project.shareCount || 0,
     };
-  });
-  
+  }));
+
   return NextResponse.json(serializedProjects);
 }
 
 export async function POST(request: Request) {
-  await connectDB();
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const formData = await request.formData();
-  const title = formData.get('title')?.toString() || '';
-  const description = formData.get('description')?.toString() || '';
-  const githubUrl = formData.get('githubUrl')?.toString() || '';
-  const liveUrl = formData.get('liveUrl')?.toString() || '';
-  const tags = (formData.get('tags')?.toString() || '')
-    .split(',')
-    .map(t => t.trim())
-    .filter(Boolean);
-
-  const images: string[] = [];
-  const files = formData.getAll('images') as File[];
-  if (files && files.length) {
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadsDir, { recursive: true });
-    for (const file of files) {
-      const ext = file.name.split('.').pop() || 'png';
-      const filename = `${uuidv4()}.${ext}`;
-      const filePath = join(uploadsDir, filename);
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-      images.push(`/uploads/${filename}`);
+  try {
+    await connectDB();
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const user = await User.findOne({ email: session.user.email }).exec();
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const githubUrl = formData.get('githubUrl') as string;
+    const liveUrl = formData.get('liveUrl') as string;
+    const tags = formData.get('tags') as string;
+    const images = formData.getAll('images') as File[];
+    const video = formData.get('video') as File;
+
+    // Validate required fields
+    if (!title || !description) {
+      return NextResponse.json({ error: 'Title and description are required' }, { status: 400 });
+    }
+
+    // Handle file uploads
+    const uploadedImages: string[] = [];
+    if (images && images.length > 0) {
+      for (const image of images) {
+        const bytes = await image.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        const uploadsDir = join(process.cwd(), 'public', 'uploads');
+        await mkdir(uploadsDir, { recursive: true });
+        
+        const filename = `${uuidv4()}-${image.name}`;
+        const filepath = join(uploadsDir, filename);
+        
+        await writeFile(filepath, buffer);
+        uploadedImages.push(`/uploads/${filename}`);
+      }
+    }
+
+    let videoUrl = '';
+    if (video) {
+      const bytes = await video.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      
+      const uploadsDir = join(process.cwd(), 'public', 'uploads');
+      await mkdir(uploadsDir, { recursive: true });
+      
+      const filename = `${uuidv4()}-${video.name}`;
+      const filepath = join(uploadsDir, filename);
+      
+      await writeFile(filepath, buffer);
+      videoUrl = `/uploads/${filename}`;
+    }
+
+    // Parse tags
+    const tagsArray = tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+    // Create project data
+    const projectData = {
+      title,
+      description,
+      githubUrl: githubUrl || '#',
+      liveUrl: liveUrl || '#',
+      tags: tagsArray,
+      images: uploadedImages,
+      videoUrl,
+      author: {
+        id: user._id.toString(),
+        name: user.fullName,
+        username: user.email.split('@')[0],
+        image: user.photo || '/placeholder-user.jpg',
+        avatar: user.photo || '/placeholder-user.jpg',
+      },
+      likes: [],
+      comments: [],
+      shareCount: 0,
+      likeCount: 0,
+      shares: [],
+      createdAt: new Date(),
+      isDeleted: false,
+    };
+
+    const project = await createProject(projectData);
+
+    return NextResponse.json(project, { status: 201 });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
   }
-
-  const project = await createProject({
-    title,
-    description,
-    tags,
-    images,
-    githubUrl,
-    liveUrl,
-    author: {
-      id: session.user.id,
-      name: session.user.name || 'Unknown',
-      avatar: session.user.image || '',
-      username: session.user.email?.split('@')[0] || 'user',
-    },
-    createdAt: new Date(),
-  } as any);
-
-  // Serialize the project document
-  const serializedProject = {
-    ...project.toObject(),
-    _id: project._id.toString(),
-    id: project._id.toString() // Add id field for compatibility
-  };
-
-  return NextResponse.json(serializedProject, { status: 201 });
 }

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface RecentActivity {
   _id: string;
@@ -71,20 +72,18 @@ export function RecentActivityFeed() {
       <div className="space-y-4">
         {activities.map((activity) => (
           <div key={activity._id} className="flex gap-3 pb-4 border-b last:border-b-0">
+            {/* Profile Photo - Same logic as project card */}
             <Link href={`/profile/${activity.user._id}`}>
-              {activity.user.avatar ? (
-                <Image
-                  src={activity.user.avatar}
-                  alt={activity.user.name}
-                  width={40}
-                  height={40}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                  {(activity.user.name || "U").charAt(0)}
-                </div>
-              )}
+              <Avatar className="w-10 h-10">
+                {/* Check if user has actual uploaded photo (not placeholder) */}
+                {activity.user.avatar && activity.user.avatar !== '/placeholder-user.jpg' ? (
+                  <AvatarImage src={activity.user.avatar} alt={activity.user.name} />
+                ) : (
+                  <AvatarFallback>
+                    {activity.user.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                )}
+              </Avatar>
             </Link>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">

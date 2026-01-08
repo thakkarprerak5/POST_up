@@ -89,15 +89,15 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-64 bg-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8 bg-white">
         <p className="text-red-600">Failed to load dashboard data</p>
       </div>
     );
@@ -106,14 +106,14 @@ export default function AdminDashboard() {
   const isSuperAdmin = session?.user?.role === 'super_admin';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white text-gray-900 p-4">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-black">Admin Dashboard</h1>
+        <p className="text-black mt-2">
           Welcome back, {session?.user?.name}. Here's what's happening on POST_up today.
         </p>
-        <Badge className={isSuperAdmin ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}>
+        <Badge className="bg-blue-100 text-blue-800">
           {isSuperAdmin ? 'Super Admin' : 'Admin'}
         </Badge>
       </div>
@@ -121,14 +121,14 @@ export default function AdminDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Users Stats */}
-        <Card>
+        <Card className="bg-white border border-black">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xl text-bold font-medium text-black">Total Users</CardTitle>
+            <Users className="h-6 w-6 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.users.total}</div>
-            <div className="text-xs text-muted-foreground space-y-1">
+            <div className="text-2xl font-bold text-black">{stats.users.total}</div>
+            <div className="text-xs text-black space-y-1">
               <div>Students: {stats.users.students}</div>
               <div>Mentors: {stats.users.mentors}</div>
               {isSuperAdmin && <div>Admins: {stats.users.admins}</div>}
@@ -137,42 +137,42 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Projects Stats */}
-        <Card>
+        <Card className="bg-white border border-black">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Total Projects</CardTitle>
+            <FolderOpen className="h-6 w-6 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.projects.total}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{stats.projects.total}</div>
+            <p className="text-xs text-black">
               Active projects
             </p>
           </CardContent>
         </Card>
 
         {/* Reports Stats */}
-        <Card>
+        <Card className="bg-white border border-black">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reports</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Reports</CardTitle>
+            <AlertTriangle className="h-6 w-6 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.reports.total}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{stats.reports.total}</div>
+            <p className="text-xs text-black">
               Pending review
             </p>
           </CardContent>
         </Card>
 
         {/* Engagement Stats */}
-        <Card>
+        <Card className="bg-white border border-black">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagement</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Engagement</CardTitle>
+            <TrendingUp className="h-6 w-6 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.engagement.totalLikes}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{stats.engagement.totalLikes}</div>
+            <p className="text-xs text-black">
               Total likes • {stats.engagement.totalComments} comments
             </p>
           </CardContent>
@@ -181,38 +181,38 @@ export default function AdminDashboard() {
 
       {/* Engagement Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 bg-white border border-black">
           <CardHeader>
-            <CardTitle>Engagement Overview</CardTitle>
-            <CardDescription>Platform engagement metrics</CardDescription>
+            <CardTitle className="text-black">Engagement Overview</CardTitle>
+            <CardDescription className="text-blue-500">Platform engagement metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="space-y-2">
-                <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto">
-                  <Heart className="h-6 w-6 text-red-600" />
+                <div className="flex items-center justify-center w-18 h-18 bg-gray-100 rounded-full mx-auto">
+                  <Heart className="h-8 w-8 text-red-600" fill="currentColor" />
                 </div>
-                <div className="text-2xl font-bold">{stats.engagement.totalLikes}</div>
-                <div className="text-sm text-gray-600">Total Likes</div>
+                <div className="text-2xl font-bold text-blue-700">{stats.engagement.totalLikes}</div>
+                <div className="text-sm text-black">Total Likes</div>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mx-auto">
-                  <MessageCircle className="h-6 w-6 text-blue-600" />
+                <div className="flex items-center justify-center w-18 h-18 bg-gray-100 rounded-full mx-auto">
+                  <MessageCircle className="h-8 w-8 text-black"  />
                 </div>
-                <div className="text-2xl font-bold">{stats.engagement.totalComments}</div>
-                <div className="text-sm text-gray-600">Comments</div>
+                <div className="text-2xl font-bold text-blue-700">{stats.engagement.totalComments}</div>
+                <div className="text-sm text-black">Comments</div>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mx-auto">
-                  <Share2 className="h-6 w-6 text-green-600" />
+                <div className="flex items-center justify-center w-18 h-18 bg-gray-100 rounded-full mx-auto">
+                  <Share2 className="h-8 w-8 text-black" />
                 </div>
-                <div className="text-2xl font-bold">{stats.engagement.totalShares}</div>
-                <div className="text-sm text-gray-600">Shares</div>
+                <div className="text-2xl font-bold text-blue-700">{stats.engagement.totalShares}</div>
+                <div className="text-sm text-black">Shares</div>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t">
-              <div className="text-sm text-gray-600">
-                Average likes per project: <span className="font-semibold">{stats.engagement.avgLikesPerProject.toFixed(1)}</span>
+            <div className="mt-4 pt-4 border-t border-blue-100">
+              <div className="text-sm text-black">
+                Average likes per project: <span className="font-semibold text-blue-700">{stats.engagement.avgLikesPerProject.toFixed(1)}</span>
               </div>
             </div>
           </CardContent>
@@ -220,10 +220,10 @@ export default function AdminDashboard() {
 
         {/* Recent Activity (Super Admin only) */}
         {isSuperAdmin && stats.activityLogs && (
-          <Card>
+          <Card className="bg-white border border-black">
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest admin actions</CardDescription>
+              <CardTitle className="text-black">Recent Activity</CardTitle>
+              <CardDescription className="text-blue-500">Latest admin actions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -231,10 +231,10 @@ export default function AdminDashboard() {
                   <div key={index} className="flex items-start space-x-2">
                     <Activity className="h-4 w-4 text-blue-600 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-black truncate">
                         {log.action}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-blue-500">
                         {new Date(log.timestamp).toLocaleDateString()}
                       </p>
                     </div>
@@ -247,27 +247,27 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Projects */}
-      <Card>
+      <Card className="bg-white border border-black">
         <CardHeader>
-          <CardTitle>Recent Projects</CardTitle>
-          <CardDescription>Latest project submissions</CardDescription>
+          <CardTitle className="text-black">Recent Projects</CardTitle>
+          <CardDescription className="text-blue-500">Latest project submissions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {stats.projects.recent.map((project: any) => (
               <div key={project._id} className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{project.title}</p>
-                  <p className="text-sm text-gray-600">by {project.author.name}</p>
+                  <p className="font-medium text-black">{project.title}</p>
+                  <p className="text-sm text-blue-500">by {project.author.name}</p>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-blue-500">
                   {new Date(project.createdAt).toLocaleDateString()}
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-4">
-            <Button variant="outline" onClick={() => router.push('/admin/projects')}>
+            <Button className="border-white-600 text-white hover:bg-blue-50 hover:text-black" onClick={() => router.push('/admin/projects')}>
               View All Projects
             </Button>
           </div>

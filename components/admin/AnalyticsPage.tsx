@@ -97,15 +97,15 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-64 bg-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8 bg-white">
         <p className="text-red-600">Failed to load analytics data</p>
       </div>
     );
@@ -133,76 +133,76 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white text-gray-900 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Analytics & Insights</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-black">Analytics & Insights</h1>
+          <p className="text-black mt-2">
             Platform performance and user engagement metrics
           </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-32 !bg-white text-black border border-black hover:!bg-white focus:!bg-white data-[state=open]:!bg-white [&>svg]:!text-black [&>svg]:!opacity-100">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
+          <SelectContent className="bg-white text-black border border-black shadow-lg">
+            <SelectItem value="7" className="cursor-pointer hover:bg-blue-100 focus:bg-blue-100 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:hover:bg-blue-600">Last 7 days</SelectItem>
+            <SelectItem value="30" className="cursor-pointer hover:bg-blue-100 focus:bg-blue-100 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:hover:bg-blue-600">Last 30 days</SelectItem>
+            <SelectItem value="90" className="cursor-pointer hover:bg-blue-100 focus:bg-blue-100 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white data-[state=checked]:hover:bg-blue-600">Last 90 days</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Total Projects</CardTitle>
+            <FolderOpen className="h-6 w-6 text-gray-800" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.engagementTrends.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{data.engagementTrends.totalProjects}</div>
+            <p className="text-xs text-black/70">
               Across all time
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Total Likes</CardTitle>
+            <Heart className="h-6 w-6 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.engagementTrends.totalLikes}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{data.engagementTrends.totalLikes}</div>
+            <p className="text-xs text-black/70">
               {data.engagementTrends.avgLikesPerProject.toFixed(1)} avg per project
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Comments</CardTitle>
-            <MessageCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Total Comments</CardTitle>
+            <MessageCircle className="h-6 w-6 text-gray-900" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.engagementTrends.totalComments}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{data.engagementTrends.totalComments}</div>
+            <p className="text-xs text-black/70">
               {data.engagementTrends.avgCommentsPerProject.toFixed(1)} avg per project
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Shares</CardTitle>
-            <Share2 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-black">Total Shares</CardTitle>
+            <Share2 className="h-6 w-6 text-gray-900" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.engagementTrends.totalShares}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-black">{data.engagementTrends.totalShares}</div>
+            <p className="text-xs text-black/70">
               {data.engagementTrends.avgSharesPerProject.toFixed(1)} avg per project
             </p>
           </CardContent>
@@ -212,10 +212,10 @@ export default function AnalyticsPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* User Growth Chart */}
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader>
-            <CardTitle>User Growth</CardTitle>
-            <CardDescription>Daily user registrations over time</CardDescription>
+            <CardTitle className="text-black">User Growth</CardTitle>
+            <CardDescription className="text-black/70">Daily user registrations over time</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -233,10 +233,10 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Project Activity Chart */}
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader>
-            <CardTitle>Project Activity</CardTitle>
-            <CardDescription>Daily project uploads and engagement</CardDescription>
+            <CardTitle className="text-black">Project Activity</CardTitle>
+            <CardDescription className="text-black/70">Daily project uploads and engagement</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -257,10 +257,10 @@ export default function AnalyticsPage() {
       {/* User Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* User Type Distribution */}
-        <Card>
+        <Card className="bg-white border border-black rounded-xl">
           <CardHeader>
-            <CardTitle>User Distribution</CardTitle>
-            <CardDescription>Breakdown of user types</CardDescription>
+            <CardTitle className="text-black">User Distribution</CardTitle>
+            <CardDescription className="text-black/70">Breakdown of user types</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
@@ -286,25 +286,25 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Top Projects */}
-        <Card className="lg:col-span-2">
+        <Card className="bg-white border border-black rounded-xl lg:col-span-2">
           <CardHeader>
-            <CardTitle>Top Projects</CardTitle>
-            <CardDescription>Most liked projects on the platform</CardDescription>
+            <CardTitle className="text-black">Top Projects</CardTitle>
+            <CardDescription className="text-black/70">Most liked projects on the platform</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {data.topProjects.slice(0, 5).map((project, index) => (
                 <div key={project._id} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-yellow-100 rounded-full">
+                    <div className="flex items-center justify-center w-8 h-8 border border-black rounded-full">
                       <Trophy className="h-4 w-4 text-yellow-600" />
                     </div>
                     <div>
-                      <p className="font-medium">{project.title}</p>
-                      <p className="text-sm text-gray-600">by {project.author.name}</p>
+                      <p className="font-medium text-black">{project.title}</p>
+                      <p className="text-sm text-black/70">by {project.author.name}</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right text-black/70">
                     <div className="flex items-center space-x-4 text-sm">
                       <div className="flex items-center space-x-1">
                         <Heart className="h-3 w-3 text-red-500" />
@@ -324,32 +324,32 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Top Active Users */}
-      <Card>
+      <Card className="bg-white border border-black rounded-xl">
         <CardHeader>
-          <CardTitle>Most Active Users</CardTitle>
-          <CardDescription>Users with highest engagement and project contributions</CardDescription>
+          <CardTitle className="text-black">Most Active Users</CardTitle>
+          <CardDescription className="text-black/70">Users with highest engagement and project contributions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {data.topActiveUsers.slice(0, 10).map((user, index) => (
               <div key={user.email} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
+                  <div className="flex items-center justify-center w-8 h-8 border border-black rounded-full">
                     <Activity className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-medium">{user.fullName}</p>
-                    <p className="text-sm text-gray-600">{user.email} • {user.type}</p>
+                    <p className="font-medium text-black">{user.fullName}</p>
+                    <p className="text-sm text-black/70">{user.email} • {user.type}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right text-black/70">
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1">
                       <FolderOpen className="h-3 w-3 text-gray-500" />
                       <span>{user.projectCount} projects</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <Heart className="h-3 w-3 text-red-500" />
+                      <Heart className="h-3 w-3 text-red-600" />
                       <span>{user.totalLikes} likes</span>
                     </div>
                     <div className="flex items-center space-x-1">

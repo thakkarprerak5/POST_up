@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ultimate Avatar Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; object-cover; }
+        .author-info { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        .project-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Ultimate Avatar Test</h1>
+    
+    <div class="test">
+        <h3>Test 1: Direct Image with Inline Styles</h3>
+        <div class="author-info">
+            <img 
+                src="/placeholder-user.jpg" 
+                alt="Test Avatar" 
+                style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    display: 'block'
+                }}
+                onerror="console.log('Direct img failed'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                onload="console.log('Direct img loaded successfully'); this.classList.add('success');"
+            />
+            <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: '#e5e7eb',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: '#6b7280'
+            }}>
+                T
+            </div>
+            <div>
+                <div><strong>Direct Test</strong></div>
+                <small>Inline styles - should definitely work</small>
+            </div>
+        </div>
+        <div id="direct-result" class="debug">Loading...</div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: API Data with Inline Styles</h3>
+        <div id="api-result">Loading...</div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 3: What to Check</h3>
+        <ol>
+            <li><strong>Refresh browser</strong> (Ctrl+F5)</li>
+            <li><strong>Go to</strong> http://localhost:3000</li>
+            <li><strong>Look for</strong> ganpat's "website" project</li>
+            <li><strong>Check</strong> if profile photo is visible</li>
+            <li><strong>Open console</strong> (F12) for loading messages</li>
+            <li><strong>If still not visible</strong>, check:</li>
+            <ul>
+                <li>Browser console for JavaScript errors</li>
+                <li>Network tab for failed image requests</li>
+                <li>Elements panel for computed styles</li>
+            </ul>
+        </ol>
+        <button onclick="refreshPage()">Refresh Page</button>
+    </div>
+
+    <script>
+        // Test 1: Direct image
+        const directImg = document.querySelector('img[src="/placeholder-user.jpg"]');
+        directImg.addEventListener('load', () => {
+            document.getElementById('direct-result').innerHTML = '✅ Direct image loaded successfully';
+            directImg.parentElement.classList.add('success');
+        });
+        directImg.addEventListener('error', () => {
+            document.getElementById('direct-result').innerHTML = '❌ Direct image failed to load';
+        });
+        
+        // Test 2: API data
+        async function testApiData() {
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                const ganpatProject = projects.find(p => p.author?.name === 'ganpat');
+                
+                if (ganpatProject) {
+                    const imageUrl = ganpatProject.author.image || ganpatProject.author.avatar || '/placeholder-user.jpg';
+                    
+                    document.getElementById('api-result').innerHTML = `
+                        <div class="debug">
+                            API Response:<br>
+                            Title: ${ganpatProject.title}<br>
+                            Author: ${ganpatProject.author.name}<br>
+                            Image URL: ${imageUrl}
+                        </div>
+                        <div class="project-card">
+                            <h4>${ganpatProject.title}</h4>
+                            <div class="author-info">
+                                <img 
+                                    src="${imageUrl}" 
+                                    alt="${ganpatProject.author.name}"
+                                    style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        display: 'block'
+                                    }}
+                                    onerror="console.log('API img failed:', '${imageUrl}'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                    onload="console.log('API img loaded successfully:', '${imageUrl}'); this.classList.add('success');"
+                                />
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#e5e7eb',
+                                    display: 'none',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '12px',
+                                    color: '#6b7280'
+                                }}>
+                                    ${ganpatProject.author.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div><strong>${ganpatProject.author.name}</strong></div>
+                                    <small>API data test</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add event listeners to dynamically created image
+                    const apiImg = document.querySelector('#api-result img');
+                    apiImg.addEventListener('load', () => {
+                        document.getElementById('api-result').innerHTML += '<div class="debug">✅ API image loaded successfully</div>';
+                    });
+                    apiImg.addEventListener('error', () => {
+                        document.getElementById('api-result').innerHTML += '<div class="debug">❌ API image failed to load</div>';
+                    });
+                } else {
+                    document.getElementById('api-result').innerHTML = '❌ Ganpat project not found in API';
+                }
+            } catch (error) {
+                document.getElementById('api-result').innerHTML = `❌ API Error: ${error.message}`;
+            }
+        }
+        
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        // Run tests
+        window.onload = () => {
+            testApiData();
+            
+            console.log('🎯 Ultimate Avatar Test');
+            console.log('1. Direct image test with inline styles');
+            console.log('2. API data test with inline styles');
+            console.log('3. Both should work regardless of CSS issues');
+            console.log('4. If these work, the main page should work too');
+        };
+    </script>
+</body>
+</html>

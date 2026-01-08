@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Ganpat Profile</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Ganpat Profile</h1>
+    
+    <div class="test">
+        <h3>Test 1: Login as Ganpat</h3>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 2: Check Profile</h3>
+        <button onclick="testProfile()">Check Profile</button>
+        <div id="profile-result"></div>
+    </div>
+    
+    <div class="test">
+        <h3>Test 3: Check User Projects API</h3>
+        <button onclick="testUserProjects()">Test User Projects</button>
+        <div id="projects-result"></div>
+    </div>
+
+    <script>
+        async function testLogin() {
+            const result = document.getElementById('login-result');
+            try {
+                const response = await fetch('/api/auth/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'ganpat@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                if (response.ok) {
+                    result.innerHTML = '<div class="success">✅ Login successful!</div>';
+                    testProfile();
+                } else {
+                    const error = await response.json();
+                    result.innerHTML = `<div class="error">❌ Login failed: ${error.error}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testProfile() {
+            const result = document.getElementById('profile-result');
+            try {
+                const response = await fetch('/api/profile');
+                const user = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `
+                        <div class="success">
+                            ✅ Profile loaded!<br>
+                            Name: ${user.fullName || 'N/A'}<br>
+                            Email: ${user.email || 'N/A'}<br>
+                            Type: ${user.type || 'N/A'}
+                        </div>
+                    `;
+                    testUserProjects();
+                } else {
+                    result.innerHTML = '<div class="error">❌ Profile not found</div>';
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testUserProjects() {
+            const result = document.getElementById('projects-result');
+            try {
+                // Try with ganpat's user ID
+                const response = await fetch('/api/users/695f41e4fbaf7a179f771541/projects');
+                const projects = await response.json();
+                
+                if (response.ok && projects.length > 0) {
+                    result.innerHTML = `
+                        <div class="success">
+                            ✅ Found ${projects.length} projects!<br>
+                            ${projects.map(p => `• ${p.title}`).join('<br>')}
+                        </div>
+                    `;
+                } else {
+                    // Try with the old author ID
+                    const oldResponse = await fetch('/api/users/693becc696e13382a825371/projects');
+                    const oldProjects = await oldResponse.json();
+                    
+                    if (oldResponse.ok && oldProjects.length > 0) {
+                        result.innerHTML = `
+                            <div class="success">
+                                ✅ Found ${oldProjects.length} projects with old ID!<br>
+                                ${oldProjects.map(p => `• ${p.title}`).join('<br>')}
+                                <br><small>Note: Using old author ID</small>
+                            </div>
+                        `;
+                    } else {
+                        result.innerHTML = '<div class="error">❌ No projects found</div>';
+                    }
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-run tests
+        window.onload = () => {
+            testLogin();
+        };
+    </script>
+</body>
+</html>
