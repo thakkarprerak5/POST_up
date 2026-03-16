@@ -7,7 +7,7 @@ import User from '@/models/User';
  * POST /api/users/[id]/follow
  * Follow or unfollow a user (especially mentors)
  */
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -20,7 +20,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return Response.json({ error: 'Current user not found' }, { status: 404 });
     }
 
-    const targetUser = await User.findById(params.id).exec();
+    const { id } = await params;
+    const targetUser = await User.findById(id).exec();
     if (!targetUser) {
       return Response.json({ error: 'Target user not found' }, { status: 404 });
     }
@@ -40,7 +41,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // Unfollow
       currentUser.following.splice(followIndex, 1);
       currentUser.followingCount = Math.max(0, currentUser.followingCount - 1);
-      
+
       if (isFollowingIndex > -1) {
         targetUser.followers.splice(isFollowingIndex, 1);
         targetUser.followerCount = Math.max(0, targetUser.followerCount - 1);
@@ -49,7 +50,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // Follow
       currentUser.following.push(targetUserId);
       currentUser.followingCount = currentUser.following.length;
-      
+
       targetUser.followers.push(currentUserId);
       targetUser.followerCount = targetUser.followers.length;
     }

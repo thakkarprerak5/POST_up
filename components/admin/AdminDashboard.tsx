@@ -6,16 +6,17 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Users, 
-  FolderOpen, 
-  AlertTriangle, 
-  Heart, 
-  MessageCircle, 
+import {
+  Users,
+  FolderOpen,
+  AlertTriangle,
+  Heart,
+  MessageCircle,
   Share2,
   TrendingUp,
   Activity,
-  ArrowLeft
+  ArrowLeft,
+  UserPlus
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -63,8 +64,17 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // DEBUG: Log session status for debugging
+    console.log('🔍 AdminDashboard Session Check:', {
+      status,
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+      userName: session?.user?.name
+    });
+
     if (status === 'unauthenticated') {
-      router.push('/login');
+      console.log('❌ AdminDashboard: User not authenticated, middleware should handle redirect');
+      // Don't redirect here - let middleware handle it to avoid redirect loops
       return;
     }
 
@@ -103,176 +113,191 @@ export default function AdminDashboard() {
     );
   }
 
-  const isSuperAdmin = session?.user?.role === 'super_admin';
+  const isSuperAdmin = session?.user?.role === 'super-admin' || (session?.user as any)?.type === 'super-admin';
 
   return (
-    <div className="space-y-6 bg-white text-gray-900 p-4">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-black">Admin Dashboard</h1>
-        <p className="text-black mt-2">
-          Welcome back, {session?.user?.name}. Here's what's happening on POST_up today.
-        </p>
-        <Badge className="bg-blue-100 text-blue-800">
-          {isSuperAdmin ? 'Super Admin' : 'Admin'}
-        </Badge>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-3xl p-8 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out border border-gray-200/30">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">Admin Dashboard</h1>
+            <p className="mt-2 text-lg text-gray-600 font-light leading-relaxed">
+              Welcome back, {session?.user?.name}. Here's what's happening on POST_up today.
+            </p>
+          </div>
+          <Badge className="mt-1 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200/50 shadow px-4 py-2 text-sm font-medium">
+            {isSuperAdmin ? 'Super Admin' : 'Admin'}
+          </Badge>
+        </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Users Stats */}
-        <Card className="bg-white border border-black">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xl text-bold font-medium text-black">Total Users</CardTitle>
-            <Users className="h-6 w-6 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-black">{stats.users.total}</div>
-            <div className="text-xs text-black space-y-1">
-              <div>Students: {stats.users.students}</div>
-              <div>Mentors: {stats.users.mentors}</div>
-              {isSuperAdmin && <div>Admins: {stats.users.admins}</div>}
+        <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out group border border-gray-200/30">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">Total Users</h3>
+            <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-50/50 to-blue-100/50 rounded-2xl group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-blue-200/20">
+              <Users className="h-7 w-7 text-blue-500 group-hover:text-blue-600 transition-colors duration-500" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="text-3xl font-semibold text-gray-900 mb-3">{stats.users.total}</div>
+          <div className="text-xs text-gray-500 space-y-1">
+            <div className="flex justify-between">
+              <span>Students:</span>
+              <span className="font-medium">{stats.users.students}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Mentors:</span>
+              <span className="font-medium">{stats.users.mentors}</span>
+            </div>
+            {isSuperAdmin && (
+              <div className="flex justify-between">
+                <span>Admins:</span>
+                <span className="font-medium">{stats.users.admins}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Projects Stats */}
-        <Card className="bg-white border border-black">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-black">Total Projects</CardTitle>
-            <FolderOpen className="h-6 w-6 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-black">{stats.projects.total}</div>
-            <p className="text-xs text-black">
-              Active projects
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out group border border-gray-200/30">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">Total Projects</h3>
+            <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-50/50 to-emerald-100/50 rounded-2xl group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-emerald-200/20">
+              <FolderOpen className="h-7 w-7 text-emerald-500 group-hover:text-emerald-600 transition-colors duration-500" />
+            </div>
+          </div>
+          <div className="text-3xl font-semibold text-gray-900 mb-3">{stats.projects.total}</div>
+          <p className="text-sm text-gray-500 font-medium">
+            Active projects
+          </p>
+        </div>
 
         {/* Reports Stats */}
-        <Card className="bg-white border border-black">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-black">Reports</CardTitle>
-            <AlertTriangle className="h-6 w-6 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-black">{stats.reports.total}</div>
-            <p className="text-xs text-black">
-              Pending review
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out group border border-gray-200/30">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">Reports</h3>
+            <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-amber-50/50 to-amber-100/50 rounded-2xl group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-amber-200/20">
+              <AlertTriangle className="h-7 w-7 text-amber-500 group-hover:text-amber-600 transition-colors duration-500" />
+            </div>
+          </div>
+          <div className="text-3xl font-semibold text-gray-900 mb-3">{stats.reports.total}</div>
+          <p className="text-sm text-gray-500 font-medium">
+            Pending review
+          </p>
+        </div>
 
         {/* Engagement Stats */}
-        <Card className="bg-white border border-black">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-black">Engagement</CardTitle>
-            <TrendingUp className="h-6 w-6 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-black">{stats.engagement.totalLikes}</div>
-            <p className="text-xs text-black">
-              Total likes • {stats.engagement.totalComments} comments
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-6 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out group border border-gray-200/30">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700 uppercase tracking-wider">Engagement</h3>
+            <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-violet-50/50 to-violet-100/50 rounded-2xl group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-violet-200/20">
+              <TrendingUp className="h-7 w-7 text-violet-500 group-hover:text-violet-600 transition-colors duration-500" />
+            </div>
+          </div>
+          <div className="text-3xl font-semibold text-gray-900 mb-3">{stats.engagement.totalLikes}</div>
+          <p className="text-sm text-gray-500 font-medium">
+            Total likes • {stats.engagement.totalComments} comments
+          </p>
+        </div>
       </div>
 
       {/* Engagement Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 bg-white border border-black">
-          <CardHeader>
-            <CardTitle className="text-black">Engagement Overview</CardTitle>
-            <CardDescription className="text-blue-500">Platform engagement metrics</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="space-y-2">
-                <div className="flex items-center justify-center w-18 h-18 bg-gray-100 rounded-full mx-auto">
-                  <Heart className="h-8 w-8 text-red-600" fill="currentColor" />
-                </div>
-                <div className="text-2xl font-bold text-blue-700">{stats.engagement.totalLikes}</div>
-                <div className="text-sm text-black">Total Likes</div>
+        <div className="lg:col-span-2 bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-8 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out border border-gray-200/30">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Engagement Overview</h2>
+            <p className="text-sm text-gray-500 mt-1">Platform engagement metrics</p>
+          </div>
+          <div className="grid grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-red-50/60 to-pink-50/40 rounded-2xl mx-auto mb-3 group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-red-200/20">
+                <Heart className="h-8 w-8 text-red-500 group-hover:text-red-600 transition-colors duration-500" fill="currentColor" />
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-center w-18 h-18 bg-gray-100 rounded-full mx-auto">
-                  <MessageCircle className="h-8 w-8 text-black"  />
-                </div>
-                <div className="text-2xl font-bold text-blue-700">{stats.engagement.totalComments}</div>
-                <div className="text-sm text-black">Comments</div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-center w-18 h-18 bg-gray-100 rounded-full mx-auto">
-                  <Share2 className="h-8 w-8 text-black" />
-                </div>
-                <div className="text-2xl font-bold text-blue-700">{stats.engagement.totalShares}</div>
-                <div className="text-sm text-black">Shares</div>
-              </div>
+              <div className="text-2xl font-semibold text-gray-900 mb-1">{stats.engagement.totalLikes}</div>
+              <div className="text-sm font-medium text-gray-600">Total Likes</div>
             </div>
-            <div className="mt-4 pt-4 border-t border-blue-100">
-              <div className="text-sm text-black">
-                Average likes per project: <span className="font-semibold text-blue-700">{stats.engagement.avgLikesPerProject.toFixed(1)}</span>
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-50/60 to-indigo-50/40 rounded-2xl mx-auto mb-3 group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-blue-200/20">
+                <MessageCircle className="h-8 w-8 text-blue-500 group-hover:text-blue-600 transition-colors duration-500" />
               </div>
+              <div className="text-2xl font-semibold text-gray-900 mb-1">{stats.engagement.totalComments}</div>
+              <div className="text-sm font-medium text-gray-600">Comments</div>
             </div>
-          </CardContent>
-        </Card>
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-50/60 to-green-50/40 rounded-2xl mx-auto mb-3 group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-emerald-200/20">
+                <Share2 className="h-8 w-8 text-emerald-500 group-hover:text-emerald-600 transition-colors duration-500" />
+              </div>
+              <div className="text-2xl font-semibold text-gray-900 mb-1">{stats.engagement.totalShares}</div>
+              <div className="text-sm font-medium text-gray-600">Shares</div>
+            </div>
+          </div>
+          <div className="mt-8 pt-6 border-t border-gray-200/40">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Average likes per project</span>
+              <span className="text-lg font-semibold text-gray-900">{stats.engagement.avgLikesPerProject.toFixed(1)}</span>
+            </div>
+          </div>
+        </div>
 
         {/* Recent Activity (Super Admin only) */}
         {isSuperAdmin && stats.activityLogs && (
-          <Card className="bg-white border border-black">
-            <CardHeader>
-              <CardTitle className="text-black">Recent Activity</CardTitle>
-              <CardDescription className="text-blue-500">Latest admin actions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stats.activityLogs.slice(0, 5).map((log: any, index: any) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <Activity className="h-4 w-4 text-blue-600 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-black truncate">
-                        {log.action}
-                      </p>
-                      <p className="text-xs text-blue-500">
-                        {new Date(log.timestamp).toLocaleDateString()}
-                      </p>
-                    </div>
+          <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 ease-in-out border border-gray-200/30">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Recent Activity</h2>
+              <p className="text-sm text-gray-500 mt-1">Latest admin actions</p>
+            </div>
+            <div className="space-y-3">
+              {stats.activityLogs.slice(0, 5).map((log: any, index: any) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50/50 rounded-xl hover:bg-gray-100/50 transition-colors duration-500 group border border-gray-200/20">
+                  <div className="p-1.5 bg-blue-50/50 rounded-lg group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all duration-500 ease-in-out border border-blue-200/20">
+                    <Activity className="h-3.5 w-3.5 text-blue-500 group-hover:text-blue-600 transition-colors duration-500" />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {log.action}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {new Date(log.timestamp).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
       {/* Recent Projects */}
-      <Card className="bg-white border border-black">
-        <CardHeader>
-          <CardTitle className="text-black">Recent Projects</CardTitle>
-          <CardDescription className="text-blue-500">Latest project submissions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {stats.projects.recent.map((project: any) => (
-              <div key={project._id} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-black">{project.title}</p>
-                  <p className="text-sm text-blue-500">by {project.author.name}</p>
-                </div>
-                <div className="text-sm text-blue-500">
-                  {new Date(project.createdAt).toLocaleDateString()}
-                </div>
+      <div className="bg-gradient-to-br from-white via-white/95 to-white/90 rounded-2xl p-8 shadow-2xl hover:shadow-3xl hover:-translate-y-1 transition-all duration-500 ease-in-out border border-gray-200/30">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Recent Projects</h2>
+          <p className="text-sm text-gray-500 mt-1">Latest project submissions</p>
+        </div>
+        <div className="space-y-4">
+          {stats.projects.recent.map((project: any) => (
+            <div key={project._id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-xl hover:bg-gray-100/50 transition-colors duration-500 group border border-gray-200/20">
+              <div>
+                <p className="font-semibold text-gray-900">{project.title}</p>
+                <p className="text-sm text-gray-600 mt-1">by {project.author.name}</p>
               </div>
-            ))}
-          </div>
-          <div className="mt-4">
-            <Button className="border-white-600 text-white hover:bg-blue-50 hover:text-black" onClick={() => router.push('/admin/projects')}>
-              View All Projects
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="text-sm text-gray-500 font-medium">
+                {new Date(project.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8">
+          <Button
+            className="bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 hover:from-blue-100 hover:to-blue-200 px-6 py-3 rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-500 ease-in-out font-medium border border-blue-200/30"
+            onClick={() => router.push('/admin/projects')}
+          >
+            View All Projects
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

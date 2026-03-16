@@ -14,7 +14,7 @@ async function makeExistingUserAdmin() {
       { email: 'thakkarprerak5@gmail.com' },
       { 
         $set: { 
-          type: 'super_admin',
+          type: 'super-admin',
           password: await bcrypt.hash('admin123', 10)
         }
       }

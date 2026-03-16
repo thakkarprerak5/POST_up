@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '../../../../../lib/db';
 import Project from '../../../../../models/Project';
+import { notifyComment } from '@/lib/notifications';
 
 // GET route with full project lookup
 export async function GET(
@@ -8,18 +9,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   console.log('=== FULL PROJECT LOOKUP HIT ===');
-  
+
   try {
     const { id } = await params;
     console.log('=== COMMENTS API DEBUG ===');
     console.log('Full lookup - ID:', id);
     console.log('ID type:', typeof id);
-    
+
     await connectDB();
     console.log('Database connected successfully');
-    
+
     console.log('Starting project lookup...');
-    
+
     // Find project by _id or custom id
     let project;
     try {
@@ -57,7 +58,7 @@ export async function GET(
         }
       }
     }
-    
+
     if (!project) {
       console.log('Project not found with either _id or custom id');
       return NextResponse.json(
@@ -72,7 +73,7 @@ export async function GET(
     // Return comments array (empty if none exist)
     const commentsToReturn = project.comments || [];
     console.log('Comments to return count:', commentsToReturn.length);
-    
+
     return NextResponse.json({
       success: true,
       comments: commentsToReturn
@@ -88,17 +89,17 @@ export async function GET(
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await connectDB();
-  
+
   const { id } = await params;
   console.log('=== POST Comment Request ===');
   console.log('Project ID:', id);
-  
+
   try {
     const body = await request.json();
     console.log('Comment body:', body);
-    
+
     const { text, userId, userName, userAvatar } = body;
-    
+
     if (!text || !userId || !userName) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
@@ -144,8 +145,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       project.comments = [];
     }
     project.comments.push(newComment);
-    
+
     await project.save();
+
+    // Create notification for project author (only if commenter is not the author)
+    if (project.authorId && project.authorId.toString() !== userId) {
+      try {
+        await notifyComment({
+          recipientId: project.authorId.toString(),
+          senderId: userId,
+          senderName: userName,
+          targetType: 'project',
+          targetId: project._id.toString(),
+          targetTitle: project.title,
+          commentText: text,
+        });
+        console.log('🔔 Comment notification sent to project author');
+      } catch (notifError) {
+        console.error('❌ Failed to send comment notification:', notifError);
+        // Don't fail the comment action if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

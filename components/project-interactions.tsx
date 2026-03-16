@@ -394,10 +394,28 @@ export function ProjectInteractions({
   };
 
   const handleLike = async () => {
+    console.log('🔍 Like button clicked:', {
+      projectId,
+      projectIdType: typeof projectId,
+      projectIdLength: projectId?.length,
+      isValidObjectId: /^[0-9a-f]{24}$/i.test(String(projectId)),
+      userSession: !!session
+    });
+
     if (!projectId || !/^[0-9a-f]{24}$/i.test(String(projectId))) {
+      console.log('❌ Invalid project ID:', projectId);
       toast({
-        title: 'Sample Project',
-        description: 'This is a sample project. Upload a real project to like it!',
+        title: 'Invalid Project',
+        description: 'This project has an invalid ID. Please refresh the page.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!session) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to like projects',
         variant: 'destructive'
       });
       return;
@@ -409,6 +427,8 @@ export function ProjectInteractions({
     
     try {
       const endpoint = `/api/projects/${projectId}/like`;
+      console.log('📡 Making like request to:', endpoint);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -416,12 +436,17 @@ export function ProjectInteractions({
         }
       });
 
+      console.log('📡 Like response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Like API error:', errorData);
         throw new Error(errorData.error || `Failed to like project (${response.status})`);
       }
 
       const data = await response.json();
+      console.log('✅ Like API success:', data);
+      
       setIsLiked(data.liked);
       setLikeCount(data.likeCount);
 
@@ -434,7 +459,7 @@ export function ProjectInteractions({
       setIsLiked(previousLikedState);
       setLikeCount(previousLikeCount);
       
-      console.error('Like error:', error);
+      console.error('❌ Like error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to like project',

@@ -25,7 +25,11 @@ export function MentorCard({ name, title, position, email, field, image, linkedi
           {/* Left - Profile Image */}
           <div className="flex-shrink-0">
             <Avatar className="h-24 w-24 rounded-xl border-2 border-border">
-              <AvatarImage src={image || "/placeholder.svg"} alt={name} className="object-cover" />
+              <AvatarImage 
+                src={image && image.trim() && image !== '/placeholder-user.jpg' ? image : undefined} 
+                alt={name} 
+                className="object-cover" 
+              />
               <AvatarFallback className="text-2xl rounded-xl bg-muted">
                 {(name || "")
                   .split(" ")

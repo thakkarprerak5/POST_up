@@ -1,24 +1,31 @@
+const mongoose = require('mongoose');
 const { connectDB } = require('./lib/db');
-const Project = require('./models/Project');
 
 async function checkProjects() {
   try {
     await connectDB();
-    const projects = await Project.find({});
-    console.log(`Found ${projects.length} projects in database`);
-    if (projects.length > 0) {
-      console.log('First project:', {
-        _id: projects[0]._id,
-        id: projects[0].id,
-        title: projects[0].title,
-        likeCount: projects[0].likeCount,
-        commentsCount: projects[0].comments?.length || 0
-      });
-    }
+    const Project = require('./models/Project');
+    
+    const projects = await Project.find({}).limit(10);
+    console.log('Total projects found:', projects.length);
+    
+    projects.forEach((project, index) => {
+      console.log(`Project ${index + 1}:`);
+      console.log(`  Title: ${project.title}`);
+      console.log(`  Images: ${project.images ? project.images.length : 0}`);
+      console.log(`  Likes: ${project.likes ? project.likes.length : 0}`);
+      console.log(`  Comments: ${project.comments ? project.comments.length : 0}`);
+      console.log(`  Shares: ${project.shareCount || 0}`);
+      console.log(`  Status: ${project.projectStatus || 'undefined'}`);
+      console.log(`  Has Images: ${project.images && project.images.length > 0}`);
+      console.log('---');
+    });
+    
+    process.exit(0);
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error:', error);
+    process.exit(1);
   }
-  process.exit(0);
 }
 
 checkProjects();

@@ -1,15 +1,20 @@
 "use client"
 
-import { Github, Linkedin, Globe, Edit, Trash2, ExternalLink, RotateCcw, Clock } from "lucide-react"
+import { Github, Linkedin, Globe, Edit, Trash2, ExternalLink, RotateCcw, Clock, Bookmark } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ClickableProfilePhoto } from '@/components/clickable-profile-photo';
+import MentorCard from '@/components/student/MentorCard';
 import Image from "next/image"
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query';
 
 interface StudentProfileProps {
   student: {
+    id: string  // Changed from _id to id to match MentorCard expectations
     name: string
     username: string
     avatar: string
@@ -22,7 +27,8 @@ interface StudentProfileProps {
     socialLinks: {
       github?: string
       linkedin?: string
-      portfolio?: string
+      twitter?: string
+      website?: string
     }
     projects: {
       id: number
@@ -30,7 +36,7 @@ interface StudentProfileProps {
       image: string
       tags: string[]
     }[]
-    uploadedProjects?: {
+    uploadedProjects: {
       _id: string
       id: string
       title: string
@@ -56,6 +62,33 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
   const [isRestoring, setIsRestoring] = useState<string | null>(null);
   const [deletedProjects, setDeletedProjects] = useState<any[]>([]);
   const [showDeletedProjects, setShowDeletedProjects] = useState(false);
+  const [mentorRefreshKey, setMentorRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('projects');
+
+  // Fetch saved posts
+  const { data: savedPostsData, isLoading: savedPostsLoading } = useQuery({
+    queryKey: ['saved-posts'],
+    queryFn: async () => {
+      console.log('🔍 Fetching saved posts...');
+      const res = await fetch('/api/user/saved-posts');
+      console.log('📊 Saved posts response status:', res.status);
+      if (!res.ok) {
+        console.log('❌ Failed to fetch saved posts:', res.status);
+        throw new Error('Failed to fetch saved posts');
+      }
+      const data = await res.json();
+      console.log('📊 Saved posts data:', data);
+      return data;
+    },
+    enabled: isOwner,
+  });
+
+  console.log('🔍 StudentProfile: student.id =', student.id, 'isOwner =', isOwner);
+  console.log('📸 Student avatar data:', student.avatar);
+
+  const refreshMentorData = () => {
+    setMentorRefreshKey(prev => prev + 1);
+  };
 
   // Fetch deleted projects when component mounts
   useEffect(() => {
@@ -79,7 +112,7 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
   const formatTimeRemaining = (milliseconds: number) => {
     const hours = Math.floor(milliseconds / (1000 * 60 * 60));
     const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24);
       return `${days} day${days > 1 ? 's' : ''} ${hours % 24} hour${(hours % 24) !== 1 ? 's' : ''}`;
@@ -99,27 +132,77 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
       return;
     }
 
+    console.log('🗑️ [DELETE] Starting deletion for project:', projectId);
     setIsDeleting(projectId);
+
     try {
+      console.log('🗑️ [DELETE] Sending DELETE request...');
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
+      console.log('🗑️ [DELETE] Response status:', response.status);
+
+      // Handle different status codes explicitly
+      if (response.status === 401) {
+        throw new Error('You must be logged in to delete projects.');
+      }
+
+      if (response.status === 403) {
+        throw new Error('You are not authorized to delete this project.');
+      }
+
+      if (response.status === 404) {
+        throw new Error('Project not found. It may have already been deleted.');
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to delete project');
+        // Try to parse error details
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('🗑️ [DELETE] Could not parse error response');
+        }
+
+        const errorMessage = errorData.error || errorData.message || `Server error (${response.status})`;
+        console.error('🗑️ [DELETE] Server error details:', errorData);
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
-      alert(result.message || 'Project deleted successfully!');
-      
-      // Refresh the page and fetch deleted projects
+      console.log('🗑️ [DELETE] Success:', result);
+
+      alert(result.message || 'Project deleted successfully! You can restore it within 24 hours.');
+
+      // Optimistically remove from UI before refresh
+      console.log('🗑️ [DELETE] Refreshing UI...');
+
+      // Fetch deleted projects first to show it in the deleted section
+      await fetchDeletedProjects();
+
+      // Then refresh the page to update the main projects list
       router.refresh();
-      fetchDeletedProjects();
+
     } catch (error) {
-      console.error('Error deleting project:', error);
-      alert('Failed to delete project. Please try again.');
+      console.error('🗑️ [DELETE] Error:', error);
+
+      // Provide user-friendly error messages
+      let userMessage = 'Failed to delete project.';
+
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        userMessage = 'Network error. Please check your connection and try again.';
+      } else if (error instanceof Error) {
+        userMessage = error.message;
+      }
+
+      alert(`❌ ${userMessage}`);
     } finally {
       setIsDeleting(null);
+      console.log('🗑️ [DELETE] Cleanup complete');
     }
   };
 
@@ -141,7 +224,7 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
 
       const result = await response.json();
       alert(result.message || 'Project restored successfully!');
-      
+
       // Refresh the page and fetch deleted projects
       router.refresh();
       fetchDeletedProjects();
@@ -157,8 +240,8 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
       {/* Profile Header Card with Banner */}
       <Card className="bg-card border-border overflow-hidden">
         {/* Banner */}
-        <div 
-          className="h-32 w-full relative"
+        <div
+          className="h-32 w-full reletive"
           style={{
             backgroundColor: student.bannerImage ? 'transparent' : (student.bannerColor || '#3b82f6'),
             backgroundImage: student.bannerImage ? `url(${student.bannerImage})` : 'none',
@@ -169,7 +252,7 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
         >
           {/* Test color block */}
           {!student.bannerImage && (
-            <div 
+            <div
               className="absolute inset-0"
               style={{ backgroundColor: student.bannerColor || '#3b82f6' }}
             />
@@ -180,16 +263,16 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
             </div>
           )}
         </div>
-        
+
         <CardContent className="p-6">
           <div className="flex items-center gap-4 -mt-12">
             <div className="relative">
-              <Image
-                src={student.avatar || "/placeholder.svg"}
-                alt={student.name}
-                width={190}
-                height={190}
-                className="rounded-full object-cover border-2 border-border bg-background"
+              <ClickableProfilePhoto
+                imageUrl={student.avatar}
+                avatar="/placeholder.svg"
+                name={student.name}
+                size="custom"
+                className="w-[190px] h-[190px] rounded-full border-2 border-border bg-background"
               />
               {isOwner && (
                 <Button
@@ -255,14 +338,33 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
+          {/* Mentor Card */}
+          <div className="relative">
+            <MentorCard
+              studentId={student.id}
+              isOwner={isOwner}
+              refreshKey={mentorRefreshKey}
+            />
+            {/* Refresh Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshMentorData}
+              className="absolute top-2 right-2 bg-white border-gray-300 hover:bg-gray-50"
+              title="Refresh mentor data"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+
           {/* Course / Branch */}
           <Card className="bg-card border-border">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Education</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="font-medium text-foreground">{student.course}</p>
-              <p className="text-sm text-muted-foreground">{student.branch}</p>
+              <p className="font-medium text-foreground">{student?.course || 'Course not specified'}</p>
+              <p className="text-sm text-muted-foreground">{student?.branch || 'Branch not specified'}</p>
             </CardContent>
           </Card>
 
@@ -295,173 +397,259 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
             </CardContent>
           </Card>
 
-          {/* Projects Uploaded */}
+          {/* Projects & Saved Posts */}
           <Card className="bg-card border-border">
-            <CardHeader className="pb-3 flex flex-row justify-between items-center">
-              <CardTitle className="text-lg">
-                Projects Uploaded ({(student.uploadedProjects?.length || 0) + (student.projects?.length || 0)})
-              </CardTitle>
-              {isOwner && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => router.push('/upload')}
-                >
-                  <Edit className="h-4 w-4" />
-                  Upload New
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {/* Show uploaded projects first */}
-              {student.uploadedProjects && student.uploadedProjects.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-medium text-foreground mb-3">Recently Uploaded</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {student.uploadedProjects.map((project) => (
-                      <div
-                        key={project._id || project.id}
-                        className="group rounded-lg border border-border overflow-hidden hover:border-primary/50 transition-colors"
+            <CardHeader className="pb-3">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="projects" className="flex items-center gap-2">
+                    My Projects
+                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                      {(student.uploadedProjects?.length || 0) + (student.projects?.length || 0)}
+                    </span>
+                  </TabsTrigger>
+                  {isOwner && (
+                    <TabsTrigger value="saved" className="flex items-center gap-2">
+                      <Bookmark className="h-4 w-4" />
+                      Saved
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                        {savedPostsData?.projects?.length || 0}
+                      </span>
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+
+                <TabsContent value="projects" className="mt-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <CardTitle className="text-lg">My Projects</CardTitle>
+                    {isOwner && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => router.push('/upload')}
                       >
-                        <div className="aspect-video relative bg-muted">
-                          <Image
-                            src={project.images?.[0] || "/placeholder.svg"}
-                            alt={project.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                        <div className="p-3">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-medium text-foreground flex-1">{project.title}</h4>
-                            {isOwner && (
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => handleEditProject(project._id || project.id)}
-                                  title="Edit project"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteProject(project._id || project.id)}
-                                  disabled={isDeleting === (project._id || project.id)}
-                                  title="Delete project"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                        <Edit className="h-4 w-4" />
+                        Upload New
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Show uploaded projects first */}
+                  {student.uploadedProjects && student.uploadedProjects.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="font-medium text-foreground mb-3">Recently Uploaded</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {student.uploadedProjects.map((project) => (
+                          <div
+                            key={project._id || project.id}
+                            className="group rounded-lg border border-border overflow-hidden hover:border-primary/50 transition-colors"
+                          >
+                            <div className="aspect-video relative bg-muted">
+                              <Image
+                                src={project.images?.[0] || "/placeholder.svg"}
+                                alt={project.title}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                            <div className="p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <h4 className="font-medium text-foreground flex-1">{project.title}</h4>
+                                {isOwner && (
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleEditProject(project._id || project.id)}
+                                      title="Edit project"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => handleDeleteProject(project._id || project.id)}
+                                      disabled={isDeleting === (project._id || project.id)}
+                                      title="Delete project"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{project.description}</p>
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {project.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex justify-between items-center text-xs text-muted-foreground">
-                            <span>{new Date(project.createdAt).toLocaleDateString()}</span>
-                            <div className="flex gap-3">
-                              <span>❤️ {project.likeCount}</span>
-                              <span>💬 {project.commentCount}</span>
+                              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{project.description}</p>
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {project.tags.slice(0, 3).map((tag) => (
+                                  <Badge key={tag} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                              <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                <span>{new Date(project.createdAt).toLocaleDateString()}</span>
+                                <div className="flex gap-3">
+                                  <span>❤️ {project.likeCount}</span>
+                                  <span>💬 {project.commentCount}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 gap-1"
+                                  onClick={() => router.push(`/projects/${project._id || project.id}`)}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  View
+                                </Button>
+                                {project.githubUrl && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => window.open(project.githubUrl, '_blank')}
+                                  >
+                                    <Github className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                {project.liveUrl && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={() => window.open(project.liveUrl, '_blank')}
+                                  >
+                                    <Globe className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="flex gap-2 mt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 gap-1"
-                              onClick={() => router.push(`/projects/${project._id || project.id}`)}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              View
-                            </Button>
-                            {project.githubUrl && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1"
-                                onClick={() => window.open(project.githubUrl, '_blank')}
-                              >
-                                <Github className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {project.liveUrl && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1"
-                                onClick={() => window.open(project.liveUrl, '_blank')}
-                              >
-                                <Globe className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Show legacy profile projects */}
-              {student.projects && student.projects.length > 0 && (
-                <div>
-                  {student.uploadedProjects && student.uploadedProjects.length > 0 && (
-                    <h4 className="font-medium text-foreground mb-3">Other Projects</h4>
+                    </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {student.projects.map((project) => (
-                      <div
-                        key={project.id}
-                        className="group rounded-lg border border-border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/projects/${project.id}`)}
-                      >
-                        <div className="aspect-video relative bg-muted">
-                          <Image
-                            src={project.image || "/placeholder.svg"}
-                            alt={project.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                        <div className="p-3">
-                          <h4 className="font-medium text-foreground mb-2">{project.title}</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {project.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
+
+                  {/* Show legacy profile projects */}
+                  {student.projects && student.projects.length > 0 && (
+                    <div>
+                      {student.uploadedProjects && student.uploadedProjects.length > 0 && (
+                        <h4 className="font-medium text-foreground mb-3">Other Projects</h4>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {student.projects.map((project) => (
+                          <div
+                            key={project.id}
+                            className="group rounded-lg border border-border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+                            onClick={() => router.push(`/projects/${project.id}`)}
+                          >
+                            <div className="aspect-video relative bg-muted">
+                              <Image
+                                src={project.image || "/placeholder.svg"}
+                                alt={project.title}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                            <div className="p-3">
+                              <h4 className="font-medium text-foreground mb-2">{project.title}</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {project.tags.slice(0, 3).map((tag) => (
+                                  <Badge key={tag} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* No projects message */}
-              {(!student.uploadedProjects || student.uploadedProjects.length === 0) && 
-               (!student.projects || student.projects.length === 0) && (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No projects uploaded yet.</p>
-                  {isOwner && (
-                    <Button onClick={() => router.push('/upload')}>
-                      Upload Your First Project
-                    </Button>
+                    </div>
                   )}
-                </div>
-              )}
-            </CardContent>
+
+                  {/* No projects message */}
+                  {(!student.uploadedProjects || student.uploadedProjects.length === 0) &&
+                    (!student.projects || student.projects.length === 0) && (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground mb-4">No projects uploaded yet.</p>
+                        {isOwner && (
+                          <Button onClick={() => router.push('/upload')}>
+                            Upload Your First Project
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                </TabsContent>
+
+                {isOwner && (
+                  <TabsContent value="saved" className="mt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <CardTitle className="text-lg">Saved Projects</CardTitle>
+                    </div>
+
+                    {savedPostsLoading ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Loading saved projects...</p>
+                      </div>
+                    ) : savedPostsData?.projects && savedPostsData.projects.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {savedPostsData.projects.map((project: any) => (
+                          <div
+                            key={project.id}
+                            className="group rounded-lg border border-border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+                            onClick={() => router.push(`/projects/${project.id}`)}
+                          >
+                            <div className="aspect-video relative bg-muted">
+                              <Image
+                                src={project.images?.[0] || "/placeholder.svg"}
+                                alt={project.title}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                            <div className="p-3">
+                              <h4 className="font-medium text-foreground mb-2">{project.title}</h4>
+                              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                {project.description}
+                              </p>
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {project.tags.slice(0, 3).map((tag: string) => (
+                                  <Badge key={tag} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Saved {new Date(project.savedAt).toLocaleDateString()}</span>
+                                <div className="flex items-center gap-2">
+                                  <span>❤️ {project.likeCount}</span>
+                                  <span>💬 {project.commentsCount}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Bookmark className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground mb-4">No saved projects yet.</p>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Explore the feed to find inspiration and save projects you love!
+                        </p>
+                        <Button onClick={() => router.push('/feed')}>
+                          Explore Feed
+                        </Button>
+                      </div>
+                    )}
+                  </TabsContent>
+                )}
+              </Tabs>
+            </CardHeader>
+            {/* No CardContent needed since TabsContent handles the content */}
           </Card>
 
           {/* Deleted Projects Section - Only for owners */}
@@ -529,7 +717,7 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
                   </div>
                   <div className="mt-4 p-3 bg-orange-100 rounded-lg">
                     <p className="text-sm text-orange-800">
-                      <strong>Note:</strong> Projects can be restored within 24 hours of deletion. 
+                      <strong>Note:</strong> Projects can be restored within 24 hours of deletion.
                       After that, they will be permanently deleted.
                     </p>
                   </div>

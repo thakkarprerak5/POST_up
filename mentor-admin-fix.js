@@ -8,16 +8,16 @@ console.log('✅ Current fix should handle this case');
 
 console.log('\n🔧 FIX IMPLEMENTED:');
 console.log('✅ Updated /api/mentors route with correct types');
-console.log('✅ Fixed super_admin type (was "super admin")');
+console.log('✅ Fixed super-admin type (was "super admin")');
 console.log('✅ Added clear comments explaining the logic');
 console.log('✅ Includes all three user types:');
 console.log('   - type: "mentor"');
 console.log('   - type: "admin"');
-console.log('   - type: "super_admin"');
+console.log('   - type: "super-admin"');
 
 console.log('\n📋 TYPE CORRECTION:');
 console.log('❌ BEFORE: { type: "super admin" }');
-console.log('✅ AFTER: { type: "super_admin" }');
+console.log('✅ AFTER: { type: "super-admin" }');
 console.log('✅ Matches User model enum exactly');
 
 console.log('\n📋 LOGIC FLOW:');
@@ -38,7 +38,7 @@ console.log('• Admins still show their mentor expertise');
 console.log('\n📋 API RESPONSE:');
 console.log('✅ Will include users with type "mentor"');
 console.log('✅ Will include users with type "admin"');
-console.log('✅ Will include users with type "super_admin"');
+console.log('✅ Will include users with type "super-admin"');
 console.log('✅ All will be displayed as mentors');
 console.log('✅ Title will be "Mentor" for all types');
 
@@ -63,7 +63,7 @@ console.log('\n🎉 MENTOR TO ADMIN FIX COMPLETE!');
 function mentorToAdminFix() {
   console.log('🎉 SUCCESS: Mentor to admin fix complete!');
   console.log('🎉 Your mentor-turned-admin will appear in list!');
-  console.log('🎉 Fixed super_admin type issue!');
+  console.log('🎉 Fixed super-admin type issue!');
   console.log('🎉 All admin types included!');
   console.log('🎉 Mentor status preserved!');
   console.log('🎉 No mentor disappears when promoted!');

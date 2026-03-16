@@ -37,5 +37,9 @@ export default function StudentProfilePage() {
     return <div>User not found</div>;
   }
 
-  return <StudentProfile student={user} isOwner={true} />
+  return <StudentProfile student={{ ...user, _id: user._id }} isOwner={true} />;
+  console.log('🔍 StudentProfilePage rendering with user:', user);
+  console.log('🔍 user._id:', user._id);
+  console.log('🔍 user._id type:', typeof user._id);
+  console.log('🔍 Passing to StudentProfile:', { ...user, _id: user._id });
 }

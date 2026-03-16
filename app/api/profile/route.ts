@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { updateUserProfile, findUserById, findUserByEmail } from '@/models/User';
+import { findUserById, findUserByEmail, updateUserProfile } from '@/models/User';
+import User from '@/models/User';
 import { authOptions } from '@/auth';
 import { Session } from 'next-auth';
 import { connectDB } from '@/lib/db';
@@ -12,52 +13,93 @@ import { listProjects } from '@/models/Project';
 // Helper function to find user by various ID types
 const findUserByAnyId = async (id: string) => {
   try {
-    // For non-ObjectId strings, try email first (most common)
     if (!/^[0-9a-f]{24}$/i.test(id)) {
       const emailUser = await findUserByEmail(id);
       if (emailUser) return emailUser;
-      
-      // If not found by email and not a valid ObjectId, return null
       return null;
     }
-    
-    // For valid ObjectIds, try to find by ID
     return await findUserById(id);
   } catch (error) {
-    console.log('Error finding user by ID:', id, error);
+    console.log('🔍 Profile API: Error finding user by ID:', id, error);
     return null;
   }
 };
 
-type SessionWithUser = Session & {
-  user: {
-    email: string;
-    name?: string | null;
-    image?: string | null;
-    id: string;
-    role?: string;
-  };
+// Self-healing: Create missing profile documents for bulk users
+const ensureProfileExists = async (user: any) => {
+  if (!user || !user._id) return user;
+  
+  // Check if profile exists and has required fields
+  const hasValidProfile = user.profile && 
+    typeof user.profile === 'object' && 
+    user.profile.type !== undefined;
+  
+  if (!hasValidProfile) {
+    console.log('🔧 Self-Healing: Creating missing profile for user:', user._id);
+    
+    // Create default profile based on user type
+    const defaultProfile = {
+      type: user.type === 'mentor' ? 'mentor' : 'student',
+      bio: '',
+      joinedDate: user.createdAt || new Date(),
+      bannerImage: '',
+      bannerColor: '',
+      enrollmentNo: '',
+      course: '',
+      branch: '',
+      year: 1,
+      skills: [],
+      department: '',
+      expertise: [],
+      position: '',
+      experience: 0,
+      researchAreas: [],
+      achievements: [],
+      officeHours: 'To be scheduled',
+      isGroupLead: false,
+      groupLeadRequests: [],
+      projectsSupervised: [],
+      socialLinks: { github: '', linkedin: '', portfolio: '' },
+      projects: []
+    };
+    
+    // Update user with new profile
+    await User.findByIdAndUpdate(user._id, { 
+      $set: { profile: defaultProfile } 
+    });
+    
+    // Return updated user
+    const updatedUser = await findUserById(user._id);
+    return updatedUser || user;
+  }
+  
+  return user;
 };
 
 // GET /api/profile
-export async function GET(request: Request) {
-  await connectDB();
-  const url = new URL(request.url);
-  const idParam = url.searchParams.get('id');
-  const emailParam = url.searchParams.get('email');
-  const session = await getServerSession(authOptions) as SessionWithUser | null;
-
+export async function GET(request: NextRequest) {
   try {
-    let user = null as any;
+    await connectDB();
+    const { searchParams } = new URL(request.url);
+    const idParam = searchParams.get('id');
+    const session = await getServerSession(authOptions);
 
-    // Priority: idParam > emailParam > session user
+    let user = null;
+    let isPublicView = false;
+
+    // Priority 1: Query parameter for public view
     if (idParam) {
       user = await findUserByAnyId(idParam);
-    } else if (emailParam) {
-      user = await findUserByEmail(emailParam);
-    } else if (session?.user?.id) {
+      isPublicView = true;
+      console.log('🔍 Profile API: Public view requested for ID:', idParam);
+    } 
+    // Priority 2: Session for private view
+    else if (session?.user?.id) {
       user = await findUserById(session.user.id);
-    } else {
+      isPublicView = false;
+      console.log('🔍 Profile API: Private view requested for session user:', session.user.id);
+    } 
+    else {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -65,38 +107,78 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Apply self-healing if profile is missing
+    user = await ensureProfileExists(user);
+
     // Fetch user's uploaded projects
     const userProjects = await listProjects(
       { 'author.id': user._id.toString() },
       { sort: { createdAt: -1 } }
     );
 
-    const userObj = user.toObject();
+    // Convert Mongoose doc to plain object safely
+    const userObj = user.toObject ? user.toObject() : { ...user };
     delete userObj.password;
-    
-    // Add uploaded projects to the response
+
+    userObj.id = user._id.toString();
+
+    // Use embedded profile directly from User document.
+    // Provide a safe fallback object so UI never crashes on missing data.
+    userObj.profile = userObj.profile || {
+      type: userObj.type === 'mentor' ? 'mentor' : 'student',
+      bio: '',
+      enrollmentNo: '',
+      course: '',
+      branch: '',
+      skills: [],
+      expertise: [],
+      socialLinks: { github: '', linkedin: '', portfolio: '' },
+      joinedDate: userObj.createdAt || new Date()
+    };
+
+    // Ensure top-level fields exist for UI compatibility
+    userObj.fullName = userObj.fullName || userObj.name || 'User';
+    userObj.photo = userObj.photo || userObj.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userObj.fullName)}&background=random&color=fff&size=200`;
+
+    // Add uploaded projects to response
     userObj.uploadedProjects = userProjects.map((project: any) => ({
-      _id: project._id.toString(),
-      id: project._id.toString(),
+      _id: project._id,
+      id: project._id,
       title: project.title,
       description: project.description,
       tags: project.tags,
       images: project.images,
       githubUrl: project.githubUrl,
       liveUrl: project.liveUrl,
-      author: project.author,
       createdAt: project.createdAt,
       likeCount: project.likeCount || 0,
       commentCount: project.comments?.length || 0,
     }));
 
+    // Public view: Exclude sensitive fields
+    if (isPublicView) {
+      console.log('🔍 Profile API: Returning public view (sensitive fields excluded)');
+      delete userObj.email;
+      delete userObj.resetOtp;
+      delete userObj.otpExpires;
+      delete userObj.account_status;
+      delete userObj.ban_timestamp;
+      delete userObj.banReason;
+      delete userObj.bannedBy;
+      delete userObj.groupId;
+      delete userObj.directMentorId;
+      delete userObj.followers;
+      delete userObj.following;
+      delete userObj.followerCount;
+      delete userObj.followingCount;
+      delete userObj.isActive;
+      delete userObj.isBlocked;
+    }
+
     return NextResponse.json(userObj);
   } catch (error) {
     console.error('Profile fetch error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -108,6 +190,7 @@ export async function PATCH(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
     // Accept FormData to support file upload from client
     const formData = await request.formData();
 
@@ -118,7 +201,9 @@ export async function PATCH(request: Request) {
     let bannerUrl: string | undefined;
 
     const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if ((file && typeof file.arrayBuffer === 'function' && file.size > 0) || (bannerFile && typeof bannerFile.arrayBuffer === 'function' && bannerFile.size > 0)) {
+
+    // Ensure upload directory exists
+    if ((file && file.size > 0) || (bannerFile && bannerFile.size > 0)) {
       try {
         await mkdir(uploadsDir, { recursive: true });
       } catch (mkdirErr) {
@@ -126,6 +211,7 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // Handle Profile Image Upload
     if (file && typeof file.arrayBuffer === 'function' && file.size > 0) {
       try {
         const ext = (file.name || 'png').split('.').pop() || 'png';
@@ -140,6 +226,7 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // Handle Banner Image Upload
     if (bannerFile && typeof bannerFile.arrayBuffer === 'function' && bannerFile.size > 0) {
       try {
         const ext = (bannerFile.name || 'png').split('.').pop() || 'png';
@@ -192,59 +279,50 @@ export async function PATCH(request: Request) {
 
     // Social links
     const socialLinks: any = {};
-    if (github) socialLinks.github = github;
-    if (linkedin) socialLinks.linkedin = linkedin;
-    if (portfolio) socialLinks.portfolio = portfolio;
+    if (github !== undefined) socialLinks.github = github;
+    if (linkedin !== undefined) socialLinks.linkedin = linkedin;
+    if (portfolio !== undefined) socialLinks.portfolio = portfolio;
     if (Object.keys(socialLinks).length) profileUpdate.socialLinks = socialLinks;
 
-    // Banner color (simple color hex string) and banner image URL
+    // Banner logic
     const bannerColor = formData.get('bannerColor')?.toString();
     const bannerImageField = formData.get('bannerImage')?.toString();
     if (bannerColor !== undefined) profileUpdate.bannerColor = bannerColor;
-    // If a new banner file was uploaded, use its URL. Otherwise if the form included an explicit bannerImage field (possibly empty string), use that to set/clear the stored value.
     if (bannerUrl) {
       profileUpdate.bannerImage = bannerUrl;
     } else if (bannerImageField !== undefined) {
       profileUpdate.bannerImage = bannerImageField;
     }
 
-    // Update profile using helper
+    // ✅ Use updateUserProfile helper which writes to profile.* fields on the User document
+    if (fullName) profileUpdate.username = fullName; // updateUserProfile maps username → fullName
     await updateUserProfile(session.user.id, profileUpdate);
 
-    // Update top-level fields like fullName and photo on user document
-    const user = await findUserById(session.user.id);
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    // Ensure profile object exists and has required `type` to avoid validation errors
-    if (!user.profile) user.profile = { type: (user.type as any) || 'student', joinedDate: new Date() } as any;
-    if (!user.profile.type) user.profile.type = (user.type as any) || 'student';
-
-    let changed = false;
-    if (fullName) {
-      user.fullName = fullName;
-      changed = true;
-    }
+    // Update photo on the User document directly if a new photo was uploaded
     if (photoUrl) {
-      user.photo = photoUrl;
-      changed = true;
+      await User.findByIdAndUpdate(session.user.id, { $set: { photo: photoUrl } });
     }
 
-    if (changed) {
-      await user.save();
+    // Return the updated user object
+    const freshUser = await findUserById(session.user.id);
+    if (!freshUser) {
+      return NextResponse.json({ error: 'User not found after update' }, { status: 404 });
     }
-
-    // Return the updated user object (without password) so clients can update cache/session
-    const fresh = await findUserById(session.user.id);
-    if (!fresh) return NextResponse.json({ error: 'User not found after update' }, { status: 404 });
-    const userObj = (fresh as any).toObject ? (fresh as any).toObject() : fresh;
+    const userObj = (freshUser as any).toObject ? (freshUser as any).toObject() : freshUser;
     delete userObj.password;
+
+    // Ensure safe profile fallback in response
+    userObj.profile = userObj.profile || {};
+    userObj.fullName = userObj.fullName || userObj.name || 'User';
+    userObj.photo = userObj.photo || userObj.photoUrl;
+
     return NextResponse.json(userObj);
+
   } catch (error: any) {
     console.error('Profile update error:', error);
     const payload: any = { error: 'Failed to update profile' };
     if (process.env.NODE_ENV === 'development') {
       payload.message = error.message;
-      payload.stack = error.stack;
     }
     return NextResponse.json(payload, { status: 500 });
   }

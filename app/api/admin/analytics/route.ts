@@ -1,146 +1,206 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
-import { createActivityLog } from '@/models/AdminActivityLog';
+import Project from '@/models/Project';
+import Report from '@/models/Report';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
 
-// Helper function to get admin info from request headers
-const getAdminInfo = (request: NextRequest) => {
-  const userId = request.headers.get('x-user-id');
-  const userRole = request.headers.get('x-user-role');
-  const userEmail = request.headers.get('x-user-email');
-  
-  if (!userId || !userRole || !userEmail) {
-    throw new Error('Admin authentication required');
-  }
-  
-  return { userId, userRole, userEmail };
-};
+async function checkAdmin(req: NextRequest) {
+    const token = await getToken({ req: req as any });
+    if (!token) return false;
+    const user = token as any;
+    return user.type === 'admin' || user.type === 'super-admin' ||
+        user.role === 'admin' || user.role === 'super-admin';
+}
 
-// Helper function to check if user is super admin
-const isSuperAdmin = (userRole: string) => userRole === 'super_admin';
+export async function GET(req: NextRequest) {
+    try {
+        await connectDB();
 
-// GET /api/admin/analytics - Get analytics data
-export async function GET(request: NextRequest) {
-  try {
-    const adminInfo = getAdminInfo(request);
-    await connectDB();
-
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || '30'; // days
-
-    const daysAgo = new Date();
-    daysAgo.setDate(daysAgo.getDate() - parseInt(period));
-
-    // User analytics
-    const userStats = await User.aggregate([
-      { $match: { createdAt: { $gte: daysAgo } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          students: {
-            $sum: { $cond: [{ $eq: ["$type", "student"] }, 1, 0] }
-          },
-          mentors: {
-            $sum: { $cond: [{ $eq: ["$type", "mentor"] }, 1, 0] }
-          },
-          total: { $sum: 1 }
+        if (!await checkAdmin(req)) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-      },
-      { $sort: { _id: 1 } }
-    ]);
 
-    // Project analytics
-    const Project = await import('@/models/Project').then(m => m.default);
-    const projectStats = await Project.aggregate([
-      { $match: { createdAt: { $gte: daysAgo }, isDeleted: { $ne: true } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          projects: { $sum: 1 },
-          totalLikes: { $sum: "$likeCount" },
-          totalComments: { $sum: { $size: "$comments" } },
-          totalShares: { $sum: "$shareCount" }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+        const { searchParams } = new URL(req.url);
+        const period = parseInt(searchParams.get('period') || '30');
+        const startDate = subDays(startOfDay(new Date()), period);
 
-    // Top projects
-    const topProjects = await Project.find({ isDeleted: { $ne: true } })
-      .sort({ likeCount: -1 })
-      .limit(10)
-      .select('title author likeCount shareCount createdAt')
-      .lean();
+        // 1. User Overview & Growth
+        const [
+            totalUsers,
+            studentCount,
+            mentorCount,
+            activeUsers,
+            newUsersTrend,
+            prevMonthUsers
+        ] = await Promise.all([
+            User.countDocuments(),
+            User.countDocuments({ type: 'student' }),
+            User.countDocuments({ type: 'mentor' }),
+            User.countDocuments({ isActive: true }),
+            User.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                        count: { $sum: 1 },
+                        students: { $sum: { $cond: [{ $eq: ["$type", "student"] }, 1, 0] } },
+                        mentors: { $sum: { $cond: [{ $eq: ["$type", "mentor"] }, 1, 0] } }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]),
+            User.countDocuments({ createdAt: { $lt: subDays(new Date(), period), $gte: subDays(new Date(), period * 2) } })
+        ]);
 
-    // Top active users
-    const topActiveUsers = await User.aggregate([
-      {
-        $lookup: {
-          from: 'projects',
-          localField: '_id',
-          foreignField: 'author.id',
-          as: 'userProjects'
-        }
-      },
-      {
-        $addFields: {
-          projectCount: { $size: '$userProjects' },
-          totalLikes: { $sum: '$userProjects.likeCount' },
-          totalComments: { $sum: { $size: '$userProjects.comments' } }
-        }
-      },
-      { $match: { type: { $in: ['student', 'mentor'] } } },
-      { $sort: { totalLikes: -1, projectCount: -1 } },
-      { $limit: 10 },
-      {
-        $project: {
-          fullName: 1,
-          email: 1,
-          type: 1,
-          projectCount: 1,
-          totalLikes: 1,
-          totalComments: 1
-        }
-      }
-    ]);
+        // 2. Project Analytics
+        const [
+            totalProjects,
+            activeProjects,
+            projectStatusStats,
+            projectTypeStats,
+            projectsTrend
+        ] = await Promise.all([
+            Project.countDocuments({ isDeleted: { $ne: true } }),
+            Project.countDocuments({ projectStatus: 'active', isDeleted: { $ne: true } }),
+            Project.aggregate([
+                { $match: { isDeleted: { $ne: true } } },
+                { $group: { _id: "$projectStatus", count: { $sum: 1 } } }
+            ]),
+            Project.aggregate([
+                { $match: { isDeleted: { $ne: true } } },
+                { $group: { _id: "$registrationType", count: { $sum: 1 } } }
+            ]),
+            Project.aggregate([
+                { $match: { createdAt: { $gte: startDate }, isDeleted: { $ne: true } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                        count: { $sum: 1 },
+                        likes: { $sum: "$likeCount" },
+                        shares: { $sum: "$shareCount" },
+                        comments: { $sum: { $size: { $ifNull: ["$comments", []] } } }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ])
+        ]);
 
-    // Engagement trends
-    const engagementTrends = await Project.aggregate([
-      { $match: { isDeleted: { $ne: true } } },
-      {
-        $group: {
-          _id: null,
-          avgLikesPerProject: { $avg: '$likeCount' },
-          avgCommentsPerProject: { $avg: { $size: '$comments' } },
-          avgSharesPerProject: { $avg: '$shareCount' },
-          totalProjects: { $sum: 1 },
-          totalLikes: { $sum: '$likeCount' },
-          totalComments: { $sum: { $size: '$comments' } },
-          totalShares: { $sum: '$shareCount' }
-        }
-      }
-    ]);
+        // 3. Engagement Metrics
+        const engagementStats = await Project.aggregate([
+            { $match: { isDeleted: { $ne: true } } },
+            {
+                $group: {
+                    _id: null,
+                    totalLikes: { $sum: "$likeCount" },
+                    totalShares: { $sum: "$shareCount" },
+                    totalComments: { $sum: { $size: { $ifNull: ["$comments", []] } } }
+                }
+            }
+        ]);
 
-    return NextResponse.json({
-      userStats,
-      projectStats,
-      topProjects,
-      topActiveUsers,
-      engagementTrends: engagementTrends[0] || {
-        avgLikesPerProject: 0,
-        avgCommentsPerProject: 0,
-        avgSharesPerProject: 0,
-        totalProjects: 0,
-        totalLikes: 0,
-        totalComments: 0,
-        totalShares: 0
-      }
-    });
-  } catch (error) {
-    console.error('Analytics API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch analytics data' },
-      { status: 500 }
-    );
-  }
+        const engagement = engagementStats[0] || { totalLikes: 0, totalShares: 0, totalComments: 0 };
+
+        // 4. Moderation Analytics
+        const [
+            pendingReports,
+            reportsTrend,
+            reportStatusStats
+        ] = await Promise.all([
+            Report.countDocuments({ status: 'pending' }),
+            Report.aggregate([
+                { $match: { createdAt: { $gte: startDate } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { _id: 1 } }
+            ]),
+            Report.aggregate([
+                { $group: { _id: "$status", count: { $sum: 1 } } }
+            ])
+        ]);
+
+        // 5. Top Projects & Users
+        const [topProjects, topActiveUsers] = await Promise.all([
+            Project.find({ isDeleted: { $ne: true } })
+                .sort({ likeCount: -1 })
+                .limit(5)
+                .select('title author likeCount shareCount createdAt')
+                .lean(),
+            User.aggregate([
+                { $match: { type: { $in: ['student', 'mentor'] } } },
+                {
+                    $lookup: {
+                        from: 'projects',
+                        localField: '_id',
+                        foreignField: 'authorId',
+                        as: 'userProjects'
+                    }
+                },
+                {
+                    $project: {
+                        fullName: 1,
+                        email: 1,
+                        type: 1,
+                        projectCount: { $size: "$userProjects" },
+                        totalLikes: { $sum: "$userProjects.likeCount" }
+                    }
+                },
+                { $sort: { totalLikes: -1 } },
+                { $limit: 10 }
+            ])
+        ]);
+
+        return NextResponse.json({
+            overview: {
+                totalUsers,
+                studentCount,
+                mentorCount,
+                activeUsers,
+                totalProjects,
+                activeProjects,
+                pendingReports,
+                userGrowth: totalUsers - prevMonthUsers
+            },
+            userStats: newUsersTrend.map(t => ({
+                _id: t._id,
+                students: t.students,
+                mentors: t.mentors,
+                total: t.count
+            })),
+            projectStats: projectsTrend.map(t => ({
+                _id: t._id,
+                projects: t.count,
+                totalLikes: t.likes,
+                totalComments: t.comments,
+                totalShares: t.shares
+            })),
+            projectDistribution: {
+                status: projectStatusStats.reduce((acc: any, curr) => ({ ...acc, [curr._id]: curr.count }), {}),
+                type: projectTypeStats.reduce((acc: any, curr) => ({ ...acc, [curr._id]: curr.count }), {})
+            },
+            engagementTrends: {
+                ...engagement,
+                totalProjects,
+                avgLikesPerProject: totalProjects > 0 ? engagement.totalLikes / totalProjects : 0,
+                avgCommentsPerProject: totalProjects > 0 ? engagement.totalComments / totalProjects : 0,
+                avgSharesPerProject: totalProjects > 0 ? engagement.totalShares / totalProjects : 0,
+            },
+            moderation: {
+                pendingReports,
+                statusDistribution: reportStatusStats.reduce((acc: any, curr) => ({ ...acc, [curr._id]: curr.count }), {}),
+                trend: reportsTrend
+            },
+            topProjects,
+            topActiveUsers
+        });
+    } catch (error) {
+        console.error('Error fetching analytics:', error);
+        return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 });
+    }
 }

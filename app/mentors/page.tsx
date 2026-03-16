@@ -23,6 +23,7 @@ interface Mentor {
   profile?: {
     bio?: string
     skills?: string[]
+    expertise?: string[]
     type: 'student' | 'mentor'
   }
   followerCount?: number
@@ -48,23 +49,32 @@ export default function MentorsPage() {
           console.log('Fetched mentors data:', data) // Debug log
           
           // Map the data to match our expected format
-          const mapped = data.map((mentor: any) => ({
-            _id: mentor.id,
-            name: mentor.name,
-            email: mentor.email || '',
-            image: mentor.avatar || '/placeholder-user.jpg',
-            title: mentor.title || 'Mentor',
-            position: mentor.position || 'Mentor ',
-            field: mentor.expertise?.[0] || 'General',
-            linkedinUrl: mentor.linkedin || '#',
-            githubUrl: mentor.github || '#',
-            profile: {
-              type: 'mentor' as const,
-              expertise: mentor.expertise || ['General'],
-              bio: mentor.bio || '',
-              skills: mentor.skills || []
-            }
-          }));
+          const mapped = data.map((mentor: any) => {
+            console.log('🔍 Processing mentor:', {
+              _id: mentor._id,
+              fullName: mentor.fullName,
+              photo: mentor.photo,
+              hasPhoto: !!mentor.photo
+            });
+            
+            return {
+              _id: mentor._id,
+              name: mentor.fullName || mentor.name,
+              email: mentor.email || '',
+              image: mentor.photo || '/placeholder-user.jpg',
+              title: mentor.title || 'Mentor',
+              position: mentor.position || 'Mentor',
+              field: mentor.expertise?.[0] || 'General',
+              linkedinUrl: mentor.linkedinUrl || '#',
+              githubUrl: mentor.githubUrl || '#',
+              profile: {
+                type: 'mentor' as const,
+                expertise: mentor.expertise || ['General'],
+                bio: mentor.bio || '',
+                skills: mentor.skills || []
+              }
+            };
+          });
           
           console.log('Mapped mentors:', mapped) // Debug log
           setMentors(mapped);

@@ -117,15 +117,15 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     setIsSubmittingComment(true);
     
     try {
-      const response = await fetch(`/api/projects/${project._id}/comments`, {
+      const response = await fetch(`/api/projects/${project._id?.toString()}/comments`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
           text: newComment,
-          userId: session.user.id || session.user.email,
-          userName: session.user.name || session.user.email
+          userId: session.user?.id || session.user?.email,
+          userName: session.user?.name || session.user?.email
         })
       });
 
@@ -238,7 +238,21 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     );
   }
 
-  const isAuthor = session?.user?.email === project.author.email;
+  const isAuthor = session?.user?.email === project?.author?.email;
+
+  // Additional safety check
+  if (!project) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="max-w-4xl mx-auto">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Project data not available</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -260,51 +274,53 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           data-reportable="true"
           data-reportable-type="project"
           data-reportable-id={project._id}
-          data-reported-user-id={project.author._id}
+          data-reported-user-id={project.author?._id}
           data-reportable-title={project.title}
           data-reportable-description={project.description}
-          data-reportable-author={project.author.name}
+          data-reportable-author={project.author?.name}
         >
           <h1 className="text-4xl font-bold mb-2">{project.title}</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Link 
-              href={`/profile/${project.author._id}`}
-              className="flex items-center gap-2 hover:underline"
-            >
-              {project.author.avatar && (
-                <Image
-                  src={project.author.avatar}
-                  alt={project.author.name}
-                  width={24}
-                  height={24}
-                  className="rounded-full w-6 h-6"
-                />
-              )}
-              {!project.author.avatar && project.author.image && (
-                <Image
-                  src={project.author.image}
-                  alt={project.author.name}
-                  width={24}
-                  height={24}
-                  className="rounded-full w-6 h-6"
-                />
-              )}
-              {!project.author.avatar && !project.author.image && (
-                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs">
-                  {project.author.name ? project.author.name.charAt(0).toUpperCase() : 'U'}
-                </div>
-              )}
-              <span>{project.author.name}</span>
-            </Link>
+            {project.author?._id && (
+              <Link 
+                href={`/profile/${project.author._id}`}
+                className="flex items-center gap-2 hover:underline"
+              >
+                {project.author.avatar && (
+                  <Image
+                    src={project.author.avatar}
+                    alt={project.author.name || 'Author'}
+                    width={24}
+                    height={24}
+                    className="rounded-full w-6 h-6"
+                  />
+                )}
+                {!project.author.avatar && project.author.image && (
+                  <Image
+                    src={project.author.image}
+                    alt={project.author.name || 'Author'}
+                    width={24}
+                    height={24}
+                    className="rounded-full w-6 h-6"
+                  />
+                )}
+                {!project.author.avatar && !project.author.image && (
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs">
+                    {project.author.name ? project.author.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+                <span>{project.author.name || 'Unknown Author'}</span>
+              </Link>
+            )}
             <span>•</span>
             <span>{new Date(project.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
 
         {/* Images */}
-        {project.images.length > 0 && (
+        {project.images?.length > 0 && (
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {project.images.slice(0, 4).map((image, idx) => (
+            {project.images?.slice(0, 4).map((image, idx) => (
               <div key={idx} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
                 <Image
                   src={image}
@@ -324,9 +340,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         </Card>
 
         {/* Tags */}
-        {project.tags.length > 0 && (
+        {project.tags?.length > 0 && (
           <div className="mb-6 flex flex-wrap gap-2">
-            {project.tags.map((tag) => (
+            {project.tags?.map((tag) => (
               <span
                 key={tag}
                 className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
@@ -380,7 +396,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             initialComments={project.comments || []}
             initialShares={project.shareCount || 0}
             likedByUser={project.likedByUser || false}
-            authorId={project.author._id}
+            authorId={project.author?._id}
             githubUrl={project.github || ""}
             liveUrl={project.liveUrl || ""}
             images={project.images || []}
@@ -428,7 +444,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             {!project.comments || project.comments.length === 0 ? (
               <p className="text-muted-foreground">No comments yet. Be the first!</p>
             ) : (
-              project.comments.map((comment) => (
+              project.comments?.map((comment) => (
                 <div 
                   key={comment.id} 
                   className="p-4 bg-secondary/30 rounded-lg relative group"

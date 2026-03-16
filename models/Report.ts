@@ -15,7 +15,8 @@ export interface IReport extends Document {
   };
   reason: 'spam' | 'inappropriate_content' | 'harassment' | 'copyright_violation' | 'fake_account' | 'other';
   description: string;
-  status: 'pending' | 'reviewed' | 'closed';
+  status: 'PENDING' | 'RESOLVED' | 'REJECTED';
+  action_taken: 'NONE' | 'SOFT_BAN' | 'PROPER_BAN' | 'CONTENT_DELETED';
   priority: 'low' | 'medium' | 'high' | 'critical';
   assignedTo?: string; // Admin ID who is handling the report
   handledBy?: string; // Admin ID who handled the report
@@ -32,9 +33,9 @@ const reportSchema = new Schema<IReport>({
   reporterName: { type: String, required: true },
   reporterEmail: { type: String, required: true },
   reportedUserId: { type: String, required: true, index: true },
-  targetType: { 
-    type: String, 
-    enum: ['user', 'project', 'comment', 'chat'], 
+  targetType: {
+    type: String,
+    enum: ['user', 'project', 'comment', 'chat'],
     required: true,
     index: true
   },
@@ -45,21 +46,27 @@ const reportSchema = new Schema<IReport>({
     authorName: { type: String },
     content: { type: String }
   },
-  reason: { 
-    type: String, 
-    enum: ['spam', 'inappropriate_content', 'harassment', 'copyright_violation', 'fake_account', 'other'], 
-    required: true 
+  reason: {
+    type: String,
+    enum: ['spam', 'inappropriate_content', 'harassment', 'copyright_violation', 'fake_account', 'other'],
+    required: true
   },
   description: { type: String, required: true },
-  status: { 
-    type: String, 
-    enum: ['pending', 'reviewed', 'closed'], 
-    default: 'pending',
+  status: {
+    type: String,
+    enum: ['PENDING', 'RESOLVED', 'REJECTED'],
+    default: 'PENDING',
     index: true
   },
-  priority: { 
-    type: String, 
-    enum: ['low', 'medium', 'high', 'critical'], 
+  action_taken: {
+    type: String,
+    enum: ['NONE', 'SOFT_BAN', 'PROPER_BAN', 'CONTENT_DELETED'],
+    default: 'NONE',
+    index: true
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'critical'],
     default: 'medium',
     index: true
   },
@@ -114,7 +121,7 @@ export const getReports = async (filters: {
   } = filters;
 
   const query: any = {};
-  
+
   if (status) query.status = status;
   if (targetType) query.targetType = targetType;
   if (priority) query.priority = priority;
@@ -125,7 +132,7 @@ export const getReports = async (filters: {
   const skip = (page - 1) * limit;
   const sort: any = {};
   sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-  
+
   return Report.find(query)
     .sort(sort)
     .skip(skip)
@@ -151,7 +158,7 @@ export const getReportsCount = async (filters: {
   } = filters;
 
   const query: any = {};
-  
+
   if (status) query.status = status;
   if (targetType) query.targetType = targetType;
   if (priority) query.priority = priority;
@@ -164,25 +171,43 @@ export const getReportsCount = async (filters: {
 
 export const updateReportStatus = async (
   reportId: string,
-  status: 'pending' | 'reviewed' | 'closed',
+  status: 'PENDING' | 'RESOLVED' | 'REJECTED',
   adminId: string,
-  resolutionNotes?: string
+  resolutionNotes?: string,
+  actionTaken?: 'NONE' | 'SOFT_BAN' | 'PROPER_BAN' | 'CONTENT_DELETED'
 ) => {
   const updateData: any = { status };
-  
-  if (status === 'closed') {
+
+  if (status === 'RESOLVED' || status === 'REJECTED') {
     updateData.resolvedBy = adminId;
     updateData.resolvedAt = new Date();
     if (resolutionNotes) updateData.resolutionNotes = resolutionNotes;
   }
-  
-  if (status === 'reviewed') {
-    updateData.handledBy = adminId;
+
+  if (actionTaken) {
+    updateData.action_taken = actionTaken;
   }
 
   return Report.findByIdAndUpdate(
     reportId,
     updateData,
+    { new: true }
+  ).exec();
+};
+
+// Helper function to update action taken
+export const updateReportAction = async (
+  reportId: string,
+  actionTaken: 'NONE' | 'SOFT_BAN' | 'PROPER_BAN' | 'CONTENT_DELETED',
+  adminId: string
+) => {
+  return Report.findByIdAndUpdate(
+    reportId,
+    {
+      action_taken: actionTaken,
+      handledBy: adminId,
+      updatedAt: new Date()
+    },
     { new: true }
   ).exec();
 };

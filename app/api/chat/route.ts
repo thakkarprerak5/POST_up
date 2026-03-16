@@ -8,6 +8,14 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
     
+    // Wait for connection to be fully established
+    let retries = 0;
+    while (require('mongoose').connection.readyState !== 1 && retries < 5) {
+      console.log('🔍 Chat API: Waiting for connection... state:', require('mongoose').connection.readyState);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,6 +34,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
+    
+    // Wait for connection to be fully established
+    let retries = 0;
+    while (require('mongoose').connection.readyState !== 1 && retries < 5) {
+      console.log('🔍 Chat API POST: Waiting for connection... state:', require('mongoose').connection.readyState);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
     
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ClickableProfilePhoto } from '@/components/clickable-profile-photo';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -96,12 +96,13 @@ export function SearchResults({ initialResults, query }: SearchResultsProps) {
         <Link key={result._id} href={`/profile/${result._id}`}>
           <Card className="hover:bg-accent/50 transition-colors h-full">
             <CardContent className="flex items-center p-4">
-              <Avatar className="h-12 w-12 mr-4">
-                <AvatarImage src={result.photo} alt={result.name} />
-                <AvatarFallback>
-                  {result.name?.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
+              <ClickableProfilePhoto
+                imageUrl={result.photo}
+                avatar="/placeholder-user.jpg"
+                name={result.name || 'User'}
+                size="xl"
+                className="mr-4"
+              />
               <div>
                 <h4 className="font-medium">{result.name}</h4>
                 <p className="text-sm text-muted-foreground">
@@ -161,12 +162,13 @@ export function SearchResults({ initialResults, query }: SearchResultsProps) {
             <CardFooter className="p-4 pt-0 flex justify-between items-center text-sm">
               {result.author && (
                 <div className="flex items-center">
-                  <Avatar className="h-6 w-6 mr-2">
-                    <AvatarImage src={result.author.image} alt={result.author.name} />
-                    <AvatarFallback>
-                      {result.author.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <ClickableProfilePhoto
+                    imageUrl={result.author.image}
+                    avatar="/placeholder-user.jpg"
+                    name={result.author.name}
+                    size="sm"
+                    className="mr-2"
+                  />
                   <span className="text-muted-foreground">{result.author.name}</span>
                 </div>
               )}

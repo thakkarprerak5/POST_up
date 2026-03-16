@@ -1,10 +1,12 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Users, ArrowLeft, Plus, Search, MessageCircle, Trash, X, Check, RotateCcw } from "lucide-react"
+import { Send, Users, ArrowLeft, Plus, Search, MessageCircle, Trash, X, Check, RotateCcw, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ClickableProfilePhoto } from "@/components/clickable-profile-photo"
+import { ProfilePhotoModal } from "@/components/profile-photo-modal"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Header } from "@/components/header"
@@ -33,10 +35,20 @@ interface Message {
   deletedFor?: string[] // Array of user IDs who deleted this message
   isSystemMessage?: boolean
   systemType?: 'user_added' | 'user_removed' | 'user_left' | 'group_created' | 'group_renamed'
+  metadata?: {
+    type?: 'PROJECT_INIT' | 'SYSTEM' | 'USER'
+    projectId?: string
+    projectTitle?: string
+    projectDescription?: string
+    techStack?: string[]
+    proposalUrl?: string
+    [key: string]: any
+  }
 }
 
 interface Chat {
-  id: string
+  _id: string
+  id?: string
   userId: string
   name: string
   avatar: string
@@ -54,15 +66,22 @@ export default function ChatPage() {
   const router = useRouter()
   const { data: session } = useSession()
   const { users, loading: usersLoading } = useUsers()
-  
+
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeChat, setActiveChat] = useState<Chat | null>(null)
   const [message, setMessage] = useState("")
   const [view, setView] = useState<"list" | "chat" | "new-chat" | "new-group" | "deleted">("list")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [showNewChat, setShowNewChat] = useState(false)
+  const [groupName, setGroupName] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<ChatUser[]>([])
-  const [groupName, setGroupName] = useState("")
+  const [showUserList, setShowUserList] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    imageUrl: '',
+    name: ''
+  })
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set())
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -77,6 +96,17 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
 
+  // Global modal handler for all profile photos
+  const handleProfilePhotoClick = (imageUrl: string, name: string) => {
+    if (imageUrl && imageUrl !== '/placeholder-user.jpg') {
+      setModalState({
+        isOpen: true,
+        imageUrl,
+        name
+      });
+    }
+  };
+
   // Get correct sender information from chat participants
   const getCorrectSenderInfo = (message: Message) => {
     // If the sender is the current user, use session info
@@ -86,7 +116,7 @@ export default function ChatPage() {
         avatar: session.user.image || '/placeholder-user.jpg'
       }
     }
-    
+
     // Otherwise, find the sender in participants
     const participant = activeChat?.participants.find(p => p.id === message.senderId)
     if (participant) {
@@ -95,7 +125,7 @@ export default function ChatPage() {
         avatar: participant.avatar
       }
     }
-    
+
     // Fallback to message sender info
     return {
       name: message.senderName,
@@ -106,12 +136,12 @@ export default function ChatPage() {
   // Fix chat participants by adding missing Admin User
   const fixChatParticipants = async (chat: Chat) => {
     if (!chat || !session?.user?.id) return;
-    
+
     // Check if Admin User should be in participants but isn't
     const adminUserId = '695b4c8652d1516d8e2cf856'; // Admin User ID from console
     const hasAdminMessage = chat.messages?.some(msg => msg.senderId === adminUserId);
     const hasAdminInParticipants = chat.participants?.some(p => p.id === adminUserId);
-    
+
     if (hasAdminMessage && !hasAdminInParticipants && chat.participants.length === 1) {
       // Add Admin User to participants
       const adminUser = {
@@ -119,7 +149,7 @@ export default function ChatPage() {
         name: 'Admin User',
         avatar: '/placeholder-user.jpg'
       };
-      
+
       try {
         const response = await fetch('/api/chat/fix-participants', {
           method: 'POST',
@@ -129,7 +159,7 @@ export default function ChatPage() {
             participant: adminUser
           })
         });
-        
+
         if (response.ok) {
           console.log('Added Admin User to chat participants');
           await fetchChats(); // Refresh chat data
@@ -143,16 +173,16 @@ export default function ChatPage() {
   // Get display name for chat based on current user
   const getChatDisplayName = (chat: Chat) => {
     if (!chat) return 'Unknown Chat';
-    
+
     if (chat.isGroup) {
       return chat.name || 'Group Chat';
     }
-    
+
     // For 1-on-1 chats, show the other person's name
     if (!session?.user?.id || !chat.participants || chat.participants.length === 0) {
       return chat.name || 'Unknown';
     }
-    
+
     const otherParticipant = chat.participants.find(p => p.id !== session.user.id);
     return otherParticipant?.name || chat.name || 'Unknown';
   };
@@ -160,16 +190,16 @@ export default function ChatPage() {
   // Get display avatar for chat based on current user
   const getChatDisplayAvatar = (chat: Chat) => {
     if (!chat) return '/placeholder-user.jpg';
-    
+
     if (chat.isGroup) {
       return chat.avatar || '/placeholder-group.jpg';
     }
-    
+
     // For 1-on-1 chats, show the other person's avatar
     if (!session?.user?.id || !chat.participants || chat.participants.length === 0) {
       return chat.avatar || '/placeholder-user.jpg';
     }
-    
+
     const otherParticipant = chat.participants.find(p => p.id !== session.user.id);
     return otherParticipant?.avatar || chat.avatar || '/placeholder-user.jpg';
   };
@@ -180,7 +210,7 @@ export default function ChatPage() {
       'chat_1767596073614_jwv4d3fn9',
       'chat_1767598233944_gywlqxz9x'
     ];
-    
+
     // Prevent setting any chat with problematic IDs
     if (chat?.id && problematicIds.some(id => chat.id.includes(id))) {
       // Silently prevent setting invalid chat ID - no need to log this
@@ -188,7 +218,7 @@ export default function ChatPage() {
       setView('list');
       return;
     }
-    
+
     setActiveChat(chat);
   };
 
@@ -200,13 +230,13 @@ export default function ChatPage() {
       'chat_1767596073614_jwv4d3fn9',
       'chat_1767598233944_gywlqxz9x'
     ];
-    
+
     // Remove any chat with problematic IDs
     if (chat?.id && problematicIds.some(id => chat.id.includes(id))) {
       // Silently filter out invalid chat ID - no need to log this
       return false;
     }
-    
+
     // Apply search filter
     return chat.name.toLowerCase().includes(searchQuery.toLowerCase());
   })
@@ -228,7 +258,7 @@ export default function ChatPage() {
 
       await addMessage(activeChat.id, newMessage)
       setMessage('')
-      
+
       // Scroll to bottom
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     } catch (error) {
@@ -313,7 +343,7 @@ export default function ChatPage() {
   // Temporary function to clear all chats for testing
   const handleClearAllChats = async () => {
     if (!confirm('Are you sure you want to delete all chats? This is for testing purposes only.')) return
-    
+
     try {
       // Delete all chats one by one
       for (const chat of chats) {
@@ -333,20 +363,20 @@ export default function ChatPage() {
       // Check if chat already exists with these participants
       const existingChat = chats.find(chat => {
         if (chat.isGroup !== isGroup) return false
-        
+
         if (!isGroup) {
           // For 1-on-1 chats, check if there's already a chat with this user
           return chat.participants.length === 2 &&
-                 chat.participants.some(p => p.id === session.user.id) &&
-                 chat.participants.some(p => p.id === selectedUsers[0].id)
+            chat.participants.some(p => p.id === session.user.id) &&
+            chat.participants.some(p => p.id === selectedUsers[0].id)
         } else {
           // For group chats, check if all selected users are already in a group together
           const currentUserId = session.user.id
           const selectedUserIds = new Set([currentUserId, ...selectedUsers.map(u => u.id)])
           const chatParticipantIds = new Set(chat.participants.map(p => p.id))
-          
+
           return selectedUserIds.size === chatParticipantIds.size &&
-                 [...selectedUserIds].every(id => chatParticipantIds.has(id))
+            [...selectedUserIds].every(id => chatParticipantIds.has(id))
         }
       })
 
@@ -360,15 +390,32 @@ export default function ChatPage() {
         return
       }
 
-      const participants = isGroup 
-        ? [
-            { id: session.user.id || '', name: session.user.name || 'You', avatar: session.user.image || '/placeholder-user.jpg' },
-            ...selectedUsers.map(u => ({ id: u.id, name: u.name, avatar: u.avatar }))
-          ]
-        : [
-            { id: session.user.id || '', name: session.user.name || 'You', avatar: session.user.image || '/placeholder-user.jpg' },
-            { id: selectedUsers[0].id, name: selectedUsers[0].name, avatar: selectedUsers[0].avatar }
-          ]
+      // Create participants array without spread operator to avoid React key warnings
+      const allParticipantIds = [];
+      allParticipantIds.push(session.user.id || '');
+
+      if (isGroup) {
+        selectedUsers.forEach(u => allParticipantIds.push(u.id));
+      } else {
+        allParticipantIds.push(selectedUsers[0].id);
+      }
+
+      const participants = allParticipantIds.map((participantId) => {
+        if (participantId === session.user?.id) {
+          return {
+            id: session.user.id || '',
+            name: session.user.name || 'You',
+            avatar: session.user.image || '/placeholder-user.jpg'
+          };
+        } else {
+          const user = selectedUsers.find(u => u.id === participantId);
+          return {
+            id: user?.id || '',
+            name: user?.name || '',
+            avatar: user?.avatar || '/placeholder-user.jpg'
+          };
+        }
+      });
 
       const chatData = {
         name: isGroup ? groupName || `Group with ${selectedUsers.map(u => u.name).join(', ')}` : selectedUsers[0].name,
@@ -392,24 +439,34 @@ export default function ChatPage() {
 
   // Handle deleting a chat
   const handleDeleteChat = async (chatId: string) => {
+    console.log('handleDeleteChat called with chatId:', chatId);
+    console.log('chatId type:', typeof chatId);
+    console.log('chatId length:', chatId?.length);
     setChatToDelete(chatId)
     setDeleteConfirmOpen(true)
   }
 
   // Confirm chat deletion
   const confirmDeleteChat = async () => {
-    if (!chatToDelete) return
-    
+    console.log('confirmDeleteChat called, chatToDelete:', chatToDelete);
+    if (!chatToDelete) {
+      console.log('No chatToDelete, returning');
+      return
+    }
+
     try {
+      console.log('Attempting to delete chat:', chatToDelete);
       await deleteChat(chatToDelete)
+      console.log('Chat deleted successfully');
       if (activeChat?.id === chatToDelete) {
         safeSetActiveChat(null)
         setView('list')
       }
       setDeleteConfirmOpen(false)
       setChatToDelete(null)
+      console.log('Delete completed successfully');
     } catch (error) {
-      console.error('Failed to delete chat:', error)
+      console.error('Failed to delete chat:', error);
       setDeleteConfirmOpen(false)
       setChatToDelete(null)
     }
@@ -466,18 +523,18 @@ export default function ChatPage() {
   // Fetch deleted items
   const fetchDeletedItems = async () => {
     if (!session?.user?.id) return
-    
+
     try {
       setLoadingDeleted(true)
-      
+
       // Fetch deleted chats
       const chatsResponse = await fetch('/api/chat/restore')
       const chatsData = await chatsResponse.json()
-      
+
       // Fetch deleted messages
       const messagesResponse = await fetch('/api/chat/restore-message')
       const messagesData = await messagesResponse.json()
-      
+
       setDeletedItems({
         chats: chatsData.deletedChats || [],
         messages: messagesData.deletedMessages || []
@@ -506,10 +563,10 @@ export default function ChatPage() {
 
       const data = await response.json()
       console.log('Chat restored:', data.chat)
-      
+
       // Refresh deleted items
       await fetchDeletedItems()
-      
+
       // Refresh chats list
       window.location.reload() // Simple refresh to show restored chat
     } catch (error) {
@@ -534,10 +591,10 @@ export default function ChatPage() {
 
       const data = await response.json()
       console.log('Message restored:', data.message)
-      
+
       // Refresh deleted items
       await fetchDeletedItems()
-      
+
       // If we're in an active chat, refresh the chat data
       if (activeChat) {
         // Manually update the active chat with the restored message
@@ -549,7 +606,7 @@ export default function ChatPage() {
           updatedAt: new Date()
         }
         safeSetActiveChat(updatedChat)
-        
+
         // Also update the chat in the chats list
         await fetchChats()
       }
@@ -580,14 +637,14 @@ export default function ChatPage() {
       'chat_1767596073614_jwv4d3fn9',
       'chat_1767598233944_gywlqxz9x'
     ];
-    
+
     if (chatIdFromUrl && problematicIds.some(id => chatIdFromUrl.includes(id))) {
       console.warn('Invalid chat ID found in URL, clearing...', chatIdFromUrl);
       // Clear URL parameter
       urlParams.delete('chat');
       const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
       window.history.replaceState({}, '', newUrl);
-      
+
       // Clear any active chat
       safeSetActiveChat(null);
       setView('list');
@@ -599,20 +656,20 @@ export default function ChatPage() {
     // Prevent infinite re-renders by tracking if we already cleared this session
     const resetKey = 'chat_reset_performed';
     const alreadyReset = typeof window !== 'undefined' && sessionStorage.getItem(resetKey) === 'true';
-    
+
     // Force reset if we detect problematic chat ID
     const problematicId = 'chat_1767596073614_jwv4d3fn9';
-    
+
     if (activeChat?.id === problematicId && !alreadyReset) {
       console.error('Problematic chat ID detected, performing complete reset');
       safeSetActiveChat(null);
       setView('list');
-      
+
       // Mark that we've performed reset to prevent infinite loops
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(resetKey, 'true');
       }
-      
+
       // Clear all browser storage related to chat
       if (typeof window !== 'undefined') {
         // Clear all possible storage keys
@@ -621,7 +678,7 @@ export default function ChatPage() {
           localStorage.removeItem(key);
           sessionStorage.removeItem(key);
         });
-        
+
         // Also try to clear any storage that might contain problematic ID
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -629,7 +686,7 @@ export default function ChatPage() {
             localStorage.removeItem(key);
           }
         }
-        
+
         for (let i = 0; i < sessionStorage.length; i++) {
           const key = sessionStorage.key(i);
           if (key && sessionStorage.getItem(key)?.includes(problematicId)) {
@@ -643,7 +700,7 @@ export default function ChatPage() {
   // Additional aggressive reset: Force clear active chat if it contains invalid ID
   useEffect(() => {
     const problematicId = 'chat_1767596073614_jwv4d3fn9';
-    
+
     // If active chat contains the problematic ID, force clear it immediately
     if (activeChat?.id?.includes(problematicId)) {
       console.error('Aggressive reset: Clearing active chat with invalid ID');
@@ -662,18 +719,18 @@ export default function ChatPage() {
         safeSetActiveChat(null);
         return;
       }
-      
+
       // Additional safeguard: prevent polling if chat ID contains invalid pattern
       if (activeChat.id.includes('1767596073614_jwv4d3fn9')) {
         console.error('Invalid chat ID detected, stopping polling:', activeChat.id);
         safeSetActiveChat(null);
         return;
       }
-      
+
       const interval = setInterval(async () => {
         await refreshActiveChat(activeChat.id)
       }, 3000) // Poll every 3 seconds for active chat
-      
+
       return () => clearInterval(interval)
     }
   }, [activeChat?.id, view])
@@ -694,7 +751,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+
       {/* Delete Confirmation Dialog */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -723,12 +780,12 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      
+
       {/* Fixed Header */}
       <div className="fixed top-0 left-0 right-0 z-50">
         <Header />
       </div>
-      
+
       <div className="flex-1 flex flex-col pt-16"> {/* Add padding-top to account for fixed header */}
         <div className="flex-1 flex overflow-hidden">
           {/* Chat List Sidebar */}
@@ -738,7 +795,7 @@ export default function ChatPage() {
                 <h1 className="text-xl font-semibold">Messages</h1>
                 <div className="flex gap-1">
                   {selectionMode ? (
-                    <>
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -756,9 +813,9 @@ export default function ChatPage() {
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -794,11 +851,11 @@ export default function ChatPage() {
                       >
                         <X className="h-4 w-4" />
                       </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
-              
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -809,7 +866,7 @@ export default function ChatPage() {
                 />
               </div>
             </div>
-            
+
             <ScrollArea className="flex-1">
               {loading ? (
                 <div className="p-4 text-center text-muted-foreground">
@@ -825,47 +882,47 @@ export default function ChatPage() {
                 </div>
               ) : (
                 <div className="p-2">
-                  {filteredChats.map((chat) => (
+                  {filteredChats.map((chat, index) => (
                     <div
-                      key={chat.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted relative group ${
-                        activeChat?.id === chat.id ? 'bg-muted' : ''
-                      } ${selectionMode ? 'selectable' : ''}`}
+                      key={chat._id || `chat-fallback-${index}`}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted relative group ${activeChat?._id === chat._id ? 'bg-muted' : ''
+                        } ${selectionMode ? 'selectable' : ''}`}
                       onClick={() => {
                         if (selectionMode) {
-                          if (selectedChatIds.has(chat.id)) {
+                          if (selectedChatIds.has(chat._id)) {
                             setSelectedChatIds(prev => {
                               const newSet = new Set(prev)
-                              newSet.delete(chat.id)
+                              newSet.delete(chat._id)
                               return newSet
                             })
                           } else {
-                            setSelectedChatIds(prev => new Set(prev).add(chat.id))
+                            setSelectedChatIds(prev => new Set(prev).add(chat._id))
                           }
                         } else {
                           safeSetActiveChat(chat)
                           setView('chat')
                         }
                       }}
-                      onContextMenu={(e) => handleContextMenu(e, chat.id)}
+                      onContextMenu={(e) => handleContextMenu(e, chat._id)}
                     >
                       {selectionMode && (
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          selectedChatIds.has(chat.id)
-                            ? 'bg-primary border-primary'
-                            : 'border-muted-foreground'
-                        }`}>
-                          {selectedChatIds.has(chat.id) && <Check className="h-3 w-3 text-primary-foreground" />}
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedChatIds.has(chat._id)
+                          ? 'bg-primary border-primary'
+                          : 'border-muted-foreground'
+                          }`}>
+                          {selectedChatIds.has(chat._id) && <Check className="h-3 w-3 text-primary-foreground" />}
                         </div>
                       )}
-                      
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={getChatDisplayAvatar(chat)} />
-                        <AvatarFallback>
-                          {getChatDisplayName(chat).charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
+
+                      <ClickableProfilePhoto
+                        imageUrl={getChatDisplayAvatar(chat)}
+                        avatar="/placeholder-user.jpg"
+                        name={getChatDisplayName(chat)}
+                        size="md"
+                        className="h-12 w-12"
+                        onPhotoClick={handleProfilePhotoClick}
+                      />
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="font-medium truncate">{getChatDisplayName(chat)}</p>
@@ -880,7 +937,11 @@ export default function ChatPage() {
                                 className="h-6 w-6 opacity-60 hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all flex-shrink-0"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  handleDeleteChat(chat.id)
+                                  console.log('Delete button clicked');
+                                  console.log('Chat object:', chat);
+                                  console.log('Chat ID:', chat._id);
+                                  console.log('Chat ID type:', typeof chat._id);
+                                  handleDeleteChat(chat._id)
                                 }}
                                 title="Delete chat"
                               >
@@ -906,7 +967,7 @@ export default function ChatPage() {
               )}
             </ScrollArea>
           </div>
-          
+
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col">
             {view === 'list' && (
@@ -918,7 +979,7 @@ export default function ChatPage() {
                 </div>
               </div>
             )}
-            
+
             {(view === 'new-chat' || view === 'new-group') && (
               <div className="flex-1 p-6">
                 <div className="max-w-md mx-auto">
@@ -938,7 +999,7 @@ export default function ChatPage() {
                       {view === 'new-group' ? 'New Group Chat' : 'New Chat'}
                     </h2>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div className="flex gap-2">
                       <Button
@@ -958,7 +1019,7 @@ export default function ChatPage() {
                         Group Chat
                       </Button>
                     </div>
-                    
+
                     {view === 'new-group' && (
                       <div>
                         <Input
@@ -969,7 +1030,7 @@ export default function ChatPage() {
                         />
                       </div>
                     )}
-                    
+
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {usersLoading ? (
                         <div className="p-4 text-center text-muted-foreground">
@@ -980,12 +1041,11 @@ export default function ChatPage() {
                           No other users available
                         </div>
                       ) : (
-                        users.map((user) => (
+                        users.map((user, index) => (
                           <div
-                            key={user.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted ${
-                              selectedUsers.some(u => u.id === user.id) ? 'bg-muted' : ''
-                            }`}
+                            key={user.id || `user-fallback-${index}`}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted ${selectedUsers.some(u => u.id === user.id) ? 'bg-muted' : ''
+                              }`}
                             onClick={() => {
                               if (selectedUsers.some(u => u.id === user.id)) {
                                 setSelectedUsers(selectedUsers.filter(u => u.id !== user.id))
@@ -994,10 +1054,14 @@ export default function ChatPage() {
                               }
                             }}
                           >
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={user.avatar} />
-                              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                            <ClickableProfilePhoto
+                              imageUrl={user.avatar}
+                              avatar="/placeholder-user.jpg"
+                              name={user.name}
+                              size="md"
+                              className="h-10 w-10"
+                              onPhotoClick={handleProfilePhotoClick}
+                            />
                             <span className="font-medium">{user.name}</span>
                             {selectedUsers.some(u => u.id === user.id) && (
                               <Check className="h-4 w-4 text-primary ml-auto" />
@@ -1006,7 +1070,7 @@ export default function ChatPage() {
                         ))
                       )}
                     </div>
-                    
+
                     <div className="mt-6 flex gap-2">
                       <Button
                         onClick={() => handleCreateChat(view === 'new-group')}
@@ -1030,7 +1094,7 @@ export default function ChatPage() {
                 </div>
               </div>
             )}
-            
+
             {view === 'deleted' && (
               <div className="flex-1 p-6">
                 <div className="max-w-4xl mx-auto">
@@ -1044,7 +1108,7 @@ export default function ChatPage() {
                     </Button>
                     <h2 className="text-xl font-semibold">Deleted Items</h2>
                   </div>
-                  
+
                   <div className="space-y-6">
                     {/* Deleted Chats */}
                     <div>
@@ -1059,8 +1123,8 @@ export default function ChatPage() {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {deletedItems.chats.map((item: any) => (
-                            <div key={item._id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          {deletedItems.chats.map((item: any, index) => (
+                            <div key={item._id || item.restorationToken || `deleted-chat-fallback-${index}`} className="flex items-center justify-between p-4 border border-border rounded-lg">
                               <div className="flex-1">
                                 <p className="font-medium">{item.chatData.name}</p>
                                 <p className="text-sm text-muted-foreground">
@@ -1084,7 +1148,7 @@ export default function ChatPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Deleted Messages */}
                     <div>
                       <h3 className="text-lg font-medium mb-4">Deleted Messages</h3>
@@ -1098,15 +1162,15 @@ export default function ChatPage() {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {deletedItems.messages.map((item: any) => (
-                            <div key={item._id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          {deletedItems.messages.map((item: any, index) => (
+                            <div key={item._id || item.restorationToken || `deleted-message-fallback-${index}`} className="flex items-center justify-between p-4 border border-border rounded-lg">
                               <div className="flex-1">
                                 <p className="font-medium">{item.messageData.content}</p>
                                 <p className="text-sm text-muted-foreground">
                                   From {item.messageData.senderName} • {new Date(item.messageData.timestamp).toLocaleDateString()}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  Deleted {new Date(item.deletedAt).toLocaleDateString()} • 
+                                  Deleted {new Date(item.deletedAt).toLocaleDateString()} •
                                   Expires {new Date(item.expiresAt).toLocaleDateString()}
                                 </p>
                               </div>
@@ -1128,7 +1192,7 @@ export default function ChatPage() {
                 </div>
               </div>
             )}
-            
+
             {view === 'chat' && activeChat && (
               <>
                 {/* Chat Header */}
@@ -1141,12 +1205,14 @@ export default function ChatPage() {
                     >
                       <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={getChatDisplayAvatar(activeChat)} />
-                      <AvatarFallback>
-                        {getChatDisplayName(activeChat).charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <ClickableProfilePhoto
+                      imageUrl={getChatDisplayAvatar(activeChat)}
+                      avatar="/placeholder-user.jpg"
+                      name={getChatDisplayName(activeChat)}
+                      size="md"
+                      className="h-8 w-8"
+                      onPhotoClick={handleProfilePhotoClick}
+                    />
                     <div>
                       <p className="font-medium">{getChatDisplayName(activeChat)}</p>
                       <p className="text-sm text-muted-foreground">
@@ -1164,145 +1230,185 @@ export default function ChatPage() {
                     </Button>
                   </div>
                 </div>
-                
+
                 {/* Messages */}
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-4">
-                    {activeChat.messages.map((message) => {
+                    {activeChat.messages.map((message, index) => {
                       const senderInfo = getCorrectSenderInfo(message);
                       return (
-                      <div
-                        key={message.id}
-                        className={`flex gap-3 ${
-                          message.senderId === session.user?.id ? 'flex-row-reverse' : ''
-                        }`}
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={senderInfo.avatar} />
-                          <AvatarFallback>
-                            {senderInfo.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className={`max-w-xs lg:max-w-md ${
-                          message.senderId === session.user?.id ? 'items-end' : 'items-start'
-                        }`}>
-                          <div className="flex items-center gap-2 mb-1 justify-between">
-                            <p className="text-xs text-muted-foreground">
-                              {senderInfo.name}
-                            </p>
-                            <div className="flex items-center gap-1">
-                              {/* Message status indicators for own messages */}
-                              {message.senderId === session.user?.id && (
-                                <>
-                                  {message.status === 'sent' && (
-                                    <Check className="h-3 w-3 text-muted-foreground" />
-                                  )}
-                                  {message.status === 'delivered' && (
-                                    <div className="flex">
+                        <div
+                          key={message.id || `message-fallback-${index}`}
+                          className={`flex gap-3 ${message.senderId === session.user?.id ? 'flex-row-reverse' : ''
+                            }`}
+                        >
+                          <ClickableProfilePhoto
+                            imageUrl={senderInfo.avatar}
+                            avatar="/placeholder-user.jpg"
+                            name={senderInfo.name}
+                            size="md"
+                            className="h-8 w-8"
+                            onPhotoClick={handleProfilePhotoClick}
+                          />
+
+                          <div className={`max-w-xs lg:max-w-md ${message.senderId === session.user?.id ? 'items-end' : 'items-start'
+                            }`}>
+                            <div className="flex items-center gap-2 mb-1 justify-between">
+                              <p className="text-xs text-muted-foreground">
+                                {senderInfo.name}
+                              </p>
+                              <div className="flex items-center gap-1">
+                                {/* Message status indicators for own messages */}
+                                {message.senderId === session.user?.id && (
+                                  <>
+                                    {message.status === 'sent' && (
                                       <Check className="h-3 w-3 text-muted-foreground" />
-                                      <Check className="h-3 w-3 text-muted-foreground -ml-2" />
-                                    </div>
-                                  )}
-                                  {message.status === 'seen' && (
-                                    <div className="flex">
-                                      <Check className="h-3 w-3 text-blue-500" />
-                                      <Check className="h-3 w-3 text-blue-500 -ml-2" />
-                                    </div>
-                                  )}
-                                  {message.editedAt && (
-                                    <span className="text-xs text-muted-foreground italic">edited</span>
-                                  )}
-                                  {!message.isSystemMessage && (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 opacity-60 hover:opacity-100 transition-all flex-shrink-0"
-                                        onClick={() => handleEditMessage(message.id, message.content)}
-                                        title="Edit message"
-                                      >
-                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 opacity-60 hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all flex-shrink-0"
-                                        onClick={() => handleDeleteMessage(message.id)}
-                                        title="Delete message"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </>
-                              )}
+                                    )}
+                                    {message.status === 'delivered' && (
+                                      <div className="flex">
+                                        <Check className="h-3 w-3 text-muted-foreground" />
+                                        <Check className="h-3 w-3 text-muted-foreground -ml-2" />
+                                      </div>
+                                    )}
+                                    {message.status === 'seen' && (
+                                      <div className="flex">
+                                        <Check className="h-3 w-3 text-blue-500" />
+                                        <Check className="h-3 w-3 text-blue-500 -ml-2" />
+                                      </div>
+                                    )}
+                                    {message.editedAt && (
+                                      <span className="text-xs text-muted-foreground italic">edited</span>
+                                    )}
+                                    {!message.isSystemMessage && (
+                                      <>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-5 w-5 opacity-60 hover:opacity-100 transition-all flex-shrink-0"
+                                          onClick={() => handleEditMessage(message.id, message.content)}
+                                          title="Edit message"
+                                        >
+                                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                          </svg>
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-5 w-5 opacity-60 hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all flex-shrink-0"
+                                          onClick={() => handleDeleteMessage(message.id)}
+                                          title="Delete message"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div
-                            className={`rounded-lg p-3 ${
-                              message.isSystemMessage
+                            <div
+                              className={`rounded-lg p-3 ${message.isSystemMessage
                                 ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                                 : message.senderId === session.user?.id
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            }`}
-                          >
-                            {editingMessage === message.id ? (
-                              <div className="space-y-2">
-                                <Input
-                                  value={editText}
-                                  onChange={(e) => setEditText(e.target.value)}
-                                  onKeyPress={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                      e.preventDefault()
-                                      handleSaveEdit()
-                                    }
-                                  }}
-                                  className="w-full"
-                                  autoFocus
-                                />
-                                <div className="flex gap-2">
-                                  <Button size="sm" onClick={handleSaveEdit}>
-                                    Save
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                                    Cancel
-                                  </Button>
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted'
+                                }`}
+                            >
+                              {/* Premium Light UI for PROJECT_INIT messages */}
+                              {message.metadata?.type === 'PROJECT_INIT' ? (
+                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 -m-3">
+                                  <div className="flex items-start gap-3">
+                                    <FileText className="h-5 w-5 text-blue-600 mt-1 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-gray-900 mb-1">
+                                        {message.metadata.projectTitle || 'Project Introduction'}
+                                      </h4>
+                                      {message.metadata.projectDescription && (
+                                        <p className="text-sm text-gray-600 mb-2">
+                                          {message.metadata.projectDescription}
+                                        </p>
+                                      )}
+                                      {message.metadata.techStack && message.metadata.techStack.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mb-2">
+                                          {message.metadata.techStack.map((tech: string, idx: number) => (
+                                            <Badge key={idx} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-300">
+                                              {tech}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {message.metadata.proposalUrl && (
+                                        <a
+                                          href={message.metadata.proposalUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-sm text-blue-600 hover:underline flex items-center gap-1 mt-2"
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                          View Proposal Document
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <p className={`text-sm ${message.isSystemMessage ? 'italic' : ''}`}>
-                                {message.content}
-                              </p>
-                            )}
+                              ) : editingMessage === message.id ? (
+                                <div className="space-y-2">
+                                  <Input
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault()
+                                        handleSaveEdit()
+                                      }
+                                    }}
+                                    className="w-full"
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button size="sm" onClick={handleSaveEdit}>
+                                      Save
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className={`text-sm ${message.isSystemMessage ? 'italic' : ''}`}>
+                                  {message.content}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(message.timestamp).toLocaleTimeString()}
+                              {message.editedAt && (
+                                <span className="ml-1">
+                                  (edited {new Date(message.editedAt).toLocaleTimeString()})
+                                </span>
+                              )}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                            {message.editedAt && (
-                              <span className="ml-1">
-                                (edited {new Date(message.editedAt).toLocaleTimeString()})
-                              </span>
-                            )}
-                          </p>
                         </div>
-                      </div>
                       );
                     })}
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
-                
+
                 {/* Message Input */}
                 <div className="p-4 border-t border-border">
                   {/* Typing indicator */}
                   {typingUsers.size > 0 && (
                     <div className="mb-2 text-xs text-muted-foreground">
-                      {Array.from(typingUsers).map(userId => {
+                      {Array.from(typingUsers).map((userId) => {
                         const user = activeChat?.participants.find(p => p.id === userId)
-                        return user?.name || 'Someone'
+                        return (
+                          <span key={`typing-${userId}`}>
+                            {user?.name || 'Someone'}
+                          </span>
+                        )
                       }).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
                     </div>
                   )}
@@ -1334,7 +1440,7 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Context Menu */}
       {contextMenu.visible && (
         <div
@@ -1374,6 +1480,14 @@ export default function ChatPage() {
           </Button>
         </div>
       )}
+
+      {/* Global Profile Photo Modal */}
+      <ProfilePhotoModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ isOpen: false, imageUrl: '', name: '' })}
+        imageUrl={modalState.imageUrl}
+        alt={modalState.name}
+      />
     </div>
   )
 }

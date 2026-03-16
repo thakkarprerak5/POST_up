@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Group Request Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Group Request Fix</h1>
+    
+    <button onclick="testAPI()">🧪 Test API Response</button>
+    <button onclick="hardRefresh()">🔄 Hard Refresh Main Page</button>
+    
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">🔄 Testing API response...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/assignment-requests');
+                const data = await response.json();
+                
+                const groupRequests = data.requests?.filter(r => r.requestedToType === 'group') || [];
+                
+                let output = `📊 API Test Results:\n`;
+                output += `Total requests: ${data.requests?.length || 0}\n`;
+                output += `Group requests: ${groupRequests.length}\n\n`;
+                
+                groupRequests.forEach((req, index) => {
+                    output += `🏢 Group Request ${index + 1}:\n`;
+                    output += `  ID: ${req._id}\n`;
+                    output += `  Project: ${req.projectTitle}\n`;
+                    output += `  Has groupId: ${!!req.groupId}\n`;
+                    
+                    if (req.groupId) {
+                        output += `  Group Name: ${req.groupId.name}\n`;
+                        output += `  Has Lead: ${!!req.groupId.lead}\n`;
+                        output += `  Lead Name: ${req.groupId.lead?.fullName || 'None'}\n`;
+                        output += `  Members Count: ${req.groupId.members?.length || 0}\n`;
+                        output += `  Has Error: ${!!req.groupId.error}\n`;
+                        if (req.groupId.error) {
+                            output += `  Error: ${req.groupId.error}\n`;
+                        }
+                    } else {
+                        output += `  ❌ No groupId data\n`;
+                    }
+                    output += '\n';
+                });
+                
+                const fixedRequests = groupRequests.filter(r => 
+                    r.groupId && r.groupId.name && !r.groupId.error
+                );
+                
+                const brokenRequests = groupRequests.filter(r => 
+                    !r.groupId || r.groupId.error
+                );
+                
+                output += `📈 Summary:\n`;
+                output += `  ✅ Fixed: ${fixedRequests.length}\n`;
+                output += `  ❌ Still Broken: ${brokenRequests.length}\n`;
+                
+                if (fixedRequests.length === groupRequests.length) {
+                    resultDiv.innerHTML = `<div class="result success">${output}\n\n🎉 ALL GROUP REQUESTS ARE FIXED!</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">${output}\n\n⚠️ Some requests still need fixing</div>`;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function hardRefresh() {
+            // Open main admin page with cache busting
+            window.open('/admin/students?_=' + Date.now(), '_blank');
+        }
+        
+        // Auto-test on page load
+        window.onload = testAPI;
+    </script>
+</body>
+</html>

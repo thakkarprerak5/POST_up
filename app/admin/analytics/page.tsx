@@ -1,10 +1,11 @@
-import AdminLayout from '@/components/admin/AdminLayout';
-import AnalyticsPage from '@/components/admin/AnalyticsPage';
+"use client";
 
-export default function AdminAnalyticsPage() {
+import AnalyticsPage from "@/components/admin/AnalyticsPage";
+
+export default function AnalyticsRoute() {
   return (
-    <AdminLayout>
+    <div className="min-h-screen bg-slate-50/30">
       <AnalyticsPage />
-    </AdminLayout>
+    </div>
   );
 }

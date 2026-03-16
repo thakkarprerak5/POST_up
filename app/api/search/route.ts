@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import User from '@/models/User'
 import Project from '@/models/Project'
+import Event from '@/models/Event'
 import { projects as staticProjects, collectionCategories } from '@/lib/data/projects'
 
-type SearchType = 'all' | 'users' | 'projects' | 'collections'
+type SearchType = 'all' | 'users' | 'projects' | 'collections' | 'events'
 
 interface SearchOptions {
   q: string
@@ -26,21 +27,21 @@ async function searchUsers(query: string, options: { limit: number; skip: number
   try {
     const searchTerm = query.trim();
     if (!searchTerm) return { results: [], total: 0 };
-    
+
     console.log('Searching users with term:', searchTerm);
-    
+
     // Create a case-insensitive regex pattern that matches any part of the search term
     // Split search term into words and search for each word separately
     const searchTerms = searchTerm.split(/\s+/).filter(Boolean);
-    const regexPattern = searchTerms.map(term => 
+    const regexPattern = searchTerms.map(term =>
       term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     ).join('|');
-    
+
     const regex = new RegExp(regexPattern, 'i');
-    
+
     // Create search conditions for each field
     const searchConditions = [
-      { fullName: { $regex: regex } },
+      { name: { $regex: regex } },
       { email: { $regex: regex } },
       { 'profile.enrollmentNo': { $regex: regex } },
       { 'profile.course': { $regex: regex } },
@@ -49,18 +50,18 @@ async function searchUsers(query: string, options: { limit: number; skip: number
       { 'profile.expertise': { $in: [regex] } },
       { 'profile.researchAreas': { $in: [regex] } }
     ];
-    
+
     // If search term has multiple words, also search for exact phrase
     if (searchTerms.length > 1) {
       const exactPhrase = searchTerms.join(' ');
       searchConditions.push(
-        { fullName: { $regex: new RegExp(exactPhrase, 'i') } },
+        { name: { $regex: new RegExp(exactPhrase, 'i') } },
         { email: { $regex: new RegExp(exactPhrase, 'i') } }
       );
     }
-    
+
     const userQuery = { $or: searchConditions };
-    
+
     console.log('User query:', JSON.stringify({
       $or: userQuery.$or.map(cond => {
         const key = Object.keys(cond)[0] as keyof typeof cond;
@@ -73,7 +74,7 @@ async function searchUsers(query: string, options: { limit: number; skip: number
         return { [key]: value };
       })
     }, null, 2));
-    
+
     const [users, total] = await Promise.all([
       (User as any)
         .find(userQuery)
@@ -83,9 +84,9 @@ async function searchUsers(query: string, options: { limit: number; skip: number
         .lean(),
       (User as any).countDocuments(userQuery)
     ]);
-    
+
     console.log(`Found ${users.length} users matching search`);
-    
+
     // Log first user for debugging
     if (users.length > 0) {
       console.log('Sample user found:', {
@@ -94,9 +95,9 @@ async function searchUsers(query: string, options: { limit: number; skip: number
         email: users[0].email
       });
     }
-    
+
     return { results: users, total };
-    
+
   } catch (error) {
     console.error('Error in user search:', error);
     return { results: [], total: 0 };
@@ -106,12 +107,12 @@ async function searchUsers(query: string, options: { limit: number; skip: number
 async function searchProjects(query: string, options: { limit: number; skip: number }) {
   try {
     const searchTerm = query.trim();
-    
+
     console.log('Searching projects with term:', searchTerm);
-    
+
     // Create a case-insensitive regex pattern that matches any part of the search term
     const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    
+
     const projectQuery = {
       $or: [
         { title: { $regex: regex } },
@@ -122,7 +123,7 @@ async function searchProjects(query: string, options: { limit: number; skip: num
         { liveUrl: { $regex: regex } }
       ]
     };
-    
+
     console.log('Project query:', JSON.stringify({
       $or: projectQuery.$or.map(cond => {
         const key = Object.keys(cond)[0] as keyof typeof cond;
@@ -135,7 +136,7 @@ async function searchProjects(query: string, options: { limit: number; skip: num
         return { [key]: value };
       })
     }, null, 2));
-    
+
     const [projects, total] = await Promise.all([
       (Project as any)
         .find(projectQuery)
@@ -145,10 +146,10 @@ async function searchProjects(query: string, options: { limit: number; skip: num
         .lean(),
       (Project as any).countDocuments(projectQuery)
     ]);
-    
+
     console.log(`Found ${projects.length} projects matching search`);
     return { results: projects, total };
-    
+
   } catch (error) {
     console.error('Error in project search:', error);
     return { results: [], total: 0 };
@@ -158,7 +159,7 @@ async function searchProjects(query: string, options: { limit: number; skip: num
 
 function searchStaticProjects(query: string) {
   const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-  
+
   return (staticProjects || []).filter((p: any) => {
     try {
       if (regex.test(String(p.title || ''))) return true
@@ -176,7 +177,7 @@ function searchStaticProjects(query: string) {
 
 function searchCollections(query: string) {
   const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
-  
+
   return (collectionCategories || []).filter((c: any) => {
     try {
       if (regex.test(String(c.name || ''))) return true
@@ -188,10 +189,66 @@ function searchCollections(query: string) {
   })
 }
 
+async function searchEvents(query: string, options: { limit: number; skip: number }) {
+  try {
+    const searchTerm = query.trim();
+    if (!searchTerm) return { results: [], total: 0 };
+
+    console.log('Searching events with term:', searchTerm);
+    const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+    const eventQuery = {
+      $or: [
+        { title: { $regex: regex } },
+        { description: { $regex: regex } },
+        { location: { $regex: regex } },
+        { tags: { $in: [regex] } }
+      ],
+      status: { $in: ['upcoming', 'ongoing'] }, // Only show active events in search
+      visibility: 'public'
+    };
+
+    const [events, total] = await Promise.all([
+      (Event as any)
+        .find(eventQuery)
+        .populate('organizerId', 'fullName email photo type')
+        .sort({ date: 1 })
+        .skip(options.skip)
+        .limit(options.limit)
+        .lean(),
+      (Event as any).countDocuments(eventQuery)
+    ]);
+
+    // Format events to match frontend expectation
+    const formattedEvents = events.map((event: any) => ({
+      _id: event._id,
+      title: event.title,
+      description: event.description,
+      coverImage: event.coverImage,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      organizer: {
+        name: event.organizerId?.fullName,
+        photo: event.organizerId?.photo,
+        type: event.organizerId?.type
+      },
+      type: 'event' // Marker for frontend to distinguish
+    }));
+
+    console.log(`Found ${events.length} events matching search`);
+    return { results: formattedEvents, total };
+
+  } catch (error) {
+    console.error('Error in event search:', error);
+    return { results: [], total: 0 };
+  }
+}
+
 export async function GET(request: Request) {
   console.log('\n--- New Search Request ---');
   console.log('Request URL:', request.url);
-  
+
   try {
     // Connect to database
     try {
@@ -200,21 +257,21 @@ export async function GET(request: Request) {
     } catch (dbError) {
       console.error('Database connection error:', dbError);
       return NextResponse.json(
-        { 
-          error: 'Database connection error', 
+        {
+          error: 'Database connection error',
           message: dbError instanceof Error ? dbError.message : 'Could not connect to database',
           stack: process.env.NODE_ENV === 'development' ? (dbError as Error).stack : undefined
         },
         { status: 500 }
       );
     }
-    
+
     const url = new URL(request.url);
-    
+
     // Parse and validate search options
     const options: SearchOptions = {
       q: (url.searchParams.get('q') || '').trim(),
-      type: (['all', 'users', 'projects', 'collections'].includes(url.searchParams.get('type') || '')
+      type: (['all', 'users', 'projects', 'collections', 'events'].includes(url.searchParams.get('type') || '')
         ? url.searchParams.get('type')
         : 'all') as SearchType,
       page: Math.max(1, parseInt(url.searchParams.get('page') || '1')),
@@ -223,11 +280,11 @@ export async function GET(request: Request) {
         ? url.searchParams.get('sortBy')
         : 'relevance') as 'relevance' | 'recent' | 'popular'
     };
-    
+
     console.log('Search options:', JSON.stringify(options, null, 2));
 
     if (!options.q) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         users: { results: [], total: 0, page: 1, totalPages: 0, hasMore: false },
         projects: { results: [], total: 0, page: 1, totalPages: 0, hasMore: false },
         collections: { results: [], total: 0, page: 1, totalPages: 0, hasMore: false }
@@ -264,7 +321,7 @@ export async function GET(request: Request) {
           const projectResult = await searchProjects(options.q, { limit: options.limit || 10, skip })
           let combinedResults = [...(projectResult.results || [])]
           let total = projectResult.total || 0
-          
+
           if ((options.page || 1) === 1) {
             const staticResults = searchStaticProjects(options.q)
             combinedResults = [...(staticResults || []), ...combinedResults].slice(0, options.limit || 10)
@@ -304,6 +361,25 @@ export async function GET(request: Request) {
         console.error('Error processing collections:', error);
         results.collections = { results: [], total: 0, page: 1, totalPages: 0, hasMore: false };
       }
+
+      // Search events if needed
+      if (options.type === 'all' || options.type === 'events') {
+        try {
+          const eventResult = await searchEvents(options.q, { limit: options.limit || 10, skip });
+          results.events = {
+            results: eventResult.results || [],
+            total: eventResult.total || 0,
+            page: options.page || 1,
+            totalPages: Math.ceil((eventResult.total || 0) / (options.limit || 10)) || 1,
+            hasMore: skip + (eventResult.results?.length || 0) < (eventResult.total || 0)
+          }
+        } catch (error) {
+          console.error('Error searching events:', error);
+          results.events = { results: [], total: 0, page: 1, totalPages: 0, hasMore: false };
+        }
+      } else {
+        results.events = { results: [], total: 0, page: 1, totalPages: 0, hasMore: false };
+      }
     } catch (error) {
       console.error('Error in search execution:', error)
     }
@@ -312,7 +388,8 @@ export async function GET(request: Request) {
     const finalResults = {
       users: (results.users?.results || []),
       projects: (results.projects?.results || []),
-      collections: (results.collections?.results || [])
+      collections: (results.collections?.results || []),
+      events: (results.events?.results || [])
     };
 
     console.log('Returning search results:', {

@@ -5,37 +5,27 @@ import User from '@/models/User';
 export async function GET() {
   try {
     await connectDB();
-    // Get mentors plus any admins/super admins who were originally mentors
-    // This ensures mentors always remain in the list even when promoted to admin
-    const mentors = await User.find({ 
-      $or: [
-        { type: 'mentor' },
-        { type: 'admin' },
-        { type: 'super_admin' }
-      ]
+
+    // IMPORTANT: Only return users with role = "mentor"
+    // This fixes the issue where non-mentor users were being returned
+    const mentors = await User.find({
+      type: { $in: ['mentor', 'admin', 'super-admin'] }
     })
-      .select('fullName email photo profile followerCount followingCount')
+      .select('fullName email photo profile expertise bio')
       .lean()
       .exec();
-    
-    // Map to match expected structure with all necessary fields
+
+    // Map to clean response format for frontend
     const mappedMentors = mentors.map((mentor: any) => ({
-      id: mentor._id,
-      name: mentor.fullName || mentor.email,
+      _id: mentor._id,
+      fullName: mentor.fullName || mentor.email,
       email: mentor.email,
-      avatar: mentor.photo || mentor.profile?.photo || '/placeholder.svg',
-      title: 'Mentor',
-      position: mentor.profile?.position || 'Mentor',
-      field: mentor.profile?.expertise?.[0] || 'General',
-      expertise: mentor.profile?.expertise || [],
-      bio: mentor.profile?.bio || '',
-      skills: mentor.profile?.skills || [],
-      linkedin: mentor.profile?.socialLinks?.linkedin || '#',
-      github: mentor.profile?.socialLinks?.github || '#',
-      linkedinUrl: mentor.profile?.socialLinks?.linkedin || '#',
-      githubUrl: mentor.profile?.socialLinks?.github || '#'
+      photo: mentor.photo || mentor.profile?.photo || '/placeholder.svg',
+      expertise: mentor.profile?.expertise || mentor.expertise || [],
+      bio: mentor.profile?.bio || mentor.bio || '',
+      type: 'mentor' // Explicitly set type
     }));
-    
+
     return NextResponse.json(mappedMentors);
   } catch (error: any) {
     console.error('GET /api/mentors error:', error);

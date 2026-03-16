@@ -1,17 +1,18 @@
 'use client';
 
-import { Github, ExternalLink } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Github, ExternalLink, Edit, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProjectInteractions } from "@/components/project-interactions";
+import { ClickableProfilePhoto } from "@/components/clickable-profile-photo";
 import Link from "next/link";
 
 import Image from "next/image";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Carousel,
   CarouselContent,
@@ -67,38 +68,40 @@ export function ProjectCard({
   project,
   variant = "default",
 }: ProjectCardProps) {
+  const { data: session } = useSession();
   const [api, setApi] = useState<any>(null);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const router = useRouter();
   
+  // Check if current user can manage this project
+  const canManageProject = session?.user?.id === project.author?.id;
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Project:', JSON.parse(JSON.stringify(project)));
+    console.log({
+      projectId: project._id,
+      projectTitle: project.title,
+      sessionUserId: session?.user?.id,
+      authorId: project.author?.id,
+      canManageProject
+    });
+  }
+  
   const handleAuthorClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     
-    // Comprehensive debugging
-    console.log('=== AUTHOR CLICK DEBUG ===');
-    console.log('Complete project object:', project);
-    console.log('Author object:', project.author);
-    console.log('Available author fields:', project.author ? Object.keys(project.author) : 'No author object');
+    // Use author.id which is now dynamically fetched and always correct
+    const authorId = project.author?.id;
     
-    // Try multiple possible ID fields
-    const possibleIds = [
-      project.author?.id,
-      project.author?._id,
-      project.author?.authorId,
-      project.author?.userId,
-      project.author?.author?._id,
-      project.author?.author?.id
-    ];
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== AUTHOR CLICK DEBUG ===');
+      console.log('Author ID from project.author.id:', authorId);
+      console.log('Complete author object:', project.author);
+    }
     
-    // Find first valid ID
-    const validId = possibleIds.find(id => id && id !== 'undefined' && id !== 'null' && id !== '');
-    
-    console.log('Possible IDs found:', possibleIds);
-    console.log('First valid ID:', validId);
-    
-    if (validId) {
-      console.log('✅ Navigating to profile with ID:', validId);
-      router.push(`/profile/${validId}`);
+    if (authorId && authorId !== 'undefined' && authorId !== 'null' && authorId !== '') {
+      console.log('✅ Navigating to profile with ID:', authorId);
+      router.push(`/profile/${authorId}`);
     } else {
       console.log('❌ No valid author ID found');
       console.log('❌ Available author data:', project.author);
@@ -117,12 +120,52 @@ export function ProjectCard({
     }
   };
 
+  const handleEditProject = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const projectId = project._id;
+    if (projectId) {
+      router.push(`/projects/${projectId}/edit`);
+    }
+  };
+
+  const handleDeleteProject = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      return;
+    }
+
+    const projectId = project._id;
+    if (!projectId) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Refresh the page to show updated project list
+        window.location.reload();
+      } else {
+        throw new Error('Failed to delete project');
+      }
+    } catch (error) {
+      console.error('Delete project error:', error);
+      alert('Failed to delete project. Please try again.');
+    }
+  };
+
   return (
-    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg">
+    <Card 
+      data-project-id={project._id || project.id}
+      className={`group hover:shadow-lg transition-all duration-200 hover:-translate-y-1 ${
+        variant === "embedded" ? "border-0 shadow-none bg-transparent" : "bg-card"
+      }`}
+    >
       <CardContent className="p-0">
         {/* Media Section */}
         {project.images && project.images.length > 0 ? (
-          <div className="relative">
+          <div className="relative overflow-hidden rounded-t-xl">
             {project.images.length === 1 ? (
               <div className="relative">
                 <AspectRatio ratio={16 / 9}>
@@ -134,11 +177,13 @@ export function ProjectCard({
                     sizes="(max-width: 768px) 100vw"
                     loading="lazy"
                     onError={(e) => {
-                      console.error('Image failed to load:', project.images[0]);
+                      if (process.env.NODE_ENV === 'development') {
+                        console.error('Image failed to load:', project.images[0]);
+                      }
                       (e.target as HTMLImageElement).style.display = 'none';
                       (e.target as HTMLImageElement).parentElement!.innerHTML = `
-                        <div class="w-full h-full bg-gray-200 flex items-center justify-center text-xs font-medium">
-                          ${project.author.name.charAt(0).toUpperCase()}
+                        <div class="w-full h-full bg-muted flex items-center justify-center text-xs font-medium">
+                          ${(project.author?.name || '?').charAt(0).toUpperCase()}
                         </div>
                       `;
                     }}
@@ -162,7 +207,7 @@ export function ProjectCard({
                             console.error('Image failed to load:', image);
                             (e.target as HTMLImageElement).style.display = 'none';
                             (e.target as HTMLImageElement).parentElement!.innerHTML = `
-                              <div class="w-full h-full bg-gray-200 flex items-center justify-center text-xs font-medium">
+                              <div class="w-full h-full bg-muted flex items-center justify-center text-xs font-medium">
                                 ${project.author.name.charAt(0).toUpperCase()}
                               </div>
                             `;
@@ -172,8 +217,8 @@ export function ProjectCard({
                     </CarouselItem>
                   ))}
                 </CarouselContent>
-                <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black bg-opacity-70 hover:bg-opacity-90 text-white border border-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110" />
-                <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black bg-opacity-70 hover:bg-opacity-90 text-white border border-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110" />
+                <CarouselPrevious className="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background/95 text-foreground border border-border/50 rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110" />
+                <CarouselNext className="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background/95 text-foreground border border-border/50 rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110" />
               </Carousel>
             )}
           </div>
@@ -186,10 +231,10 @@ export function ProjectCard({
               onClick={handlePlayPause}
             />
             <div 
-              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 cursor-pointer"
+              className="absolute inset-0 flex items-center justify-center bg-background/60 cursor-pointer"
               onClick={handlePlayPause}
             >
-              <div className="w-16 h-16 rounded-full bg-white bg-opacity-80 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-background/80 flex items-center justify-center">
                 <div className="w-0 h-0 border-l-[16px] border-l-transparent border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-r-0 ml-1"></div>
               </div>
             </div>
@@ -197,44 +242,45 @@ export function ProjectCard({
         ) : null}
 
         {/* Content Section */}
-        <div className="p-4">
-          {/* Author Section - CLEAN VERSION FOR ALL USERS */}
-          <div className="flex items-center gap-2 mb-3">
-            {/* Profile Photo - WORKS FOR ALL USERS */}
-            <Avatar className="w-8 h-8 cursor-pointer" onClick={handleAuthorClick}>
-              {/* Check if user has actual uploaded photo (not placeholder) */}
-              {project.author.image && project.author.image !== '/placeholder-user.jpg' ? (
-                <AvatarImage src={project.author.image} alt={project.author.name} />
-              ) : (
-                <AvatarImage src={project.author.avatar} alt={project.author.name} />
-              )}
-              <AvatarFallback>
-                {project.author.name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+        <div className="p-6">
+          {/* Author Section */}
+          <div className="flex items-center gap-3 mb-4">
+            <ClickableProfilePhoto
+              imageUrl={project.author?.image || project.author?.avatar}
+              avatar={project.author?.avatar}
+              name={project.author?.name ?? "Unknown Author"}
+              size="md"
+              className="h-10 w-10 ring-2 ring-background group-hover:ring-primary/20 transition-all duration-200"
+            />
             
-            <div>
+            <div className="flex-1">
               <a 
                 href={`/profile/${project.author?.id || ''}`}
-                className="text-sm font-medium hover:underline text-blue-600 cursor-pointer"
+                className="text-sm font-semibold text-foreground hover:text-primary cursor-pointer transition-colors duration-200"
                 onClick={(e) => {
                   e.preventDefault();
                   const authorId = project.author?.id;
-                  console.log('🔍 Clicked author:', project.author?.name);
-                  console.log('🔍 Author ID:', authorId);
-                  console.log('🔍 Navigation URL:', `/profile/${authorId}`);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('🔍 Clicked author:', project.author?.name);
+                    console.log('🔍 Author ID:', authorId);
+                    console.log('🔍 Navigation URL:', `/profile/${authorId}`);
+                  }
                   
                   if (authorId && authorId !== 'undefined' && authorId !== 'null' && authorId !== '') {
-                    console.log('✅ Navigating to:', `/profile/${authorId}`);
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('✅ Navigating to:', `/profile/${authorId}`);
+                    }
                     window.location.href = `/profile/${authorId}`;
                   } else {
-                    console.log('❌ Author ID is invalid:', authorId);
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('❌ Author ID is invalid:', authorId);
+                    }
                   }
                 }}
               >
-                {project.author?.name || 'Unknown Author'}
+                {project.author?.name ?? "Unknown Author"}
               </a>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground font-medium">
                 {project.author?.username || 'unknown'}
               </p>
               {project.createdAt && (
@@ -246,18 +292,18 @@ export function ProjectCard({
           </div>
 
           {/* Title */}
-          <h3 className="font-semibold text-lg line-clamp-2">{project.title}</h3>
+          <h3 className="font-bold text-xl line-clamp-2 mb-3 text-foreground">{project.title}</h3>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground line-clamp-3 mt-1">
+          <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
             {project.description}
           </p>
 
           {/* Tags */}
           {project.tags && project.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="flex flex-wrap gap-1.5 mb-4">
               {project.tags.slice(0, 3).map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
+                <Badge key={index} variant="secondary" className="text-xs font-medium bg-secondary/50 hover:bg-secondary transition-colors">
                   {tag}
                 </Badge>
               ))}
@@ -265,9 +311,9 @@ export function ProjectCard({
           )}
 
           {/* Links */}
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2 mb-4 flex-wrap">
             {project.githubUrl && project.githubUrl !== "#" && (
-              <Button variant="outline" size="sm" className="flex items-center gap-1" asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-1 hover:bg-primary/5 hover:border-primary/50 transition-colors" asChild>
                 <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
                   <Github className="w-4 h-4" />
                   Code
@@ -275,12 +321,36 @@ export function ProjectCard({
               </Button>
             )}
             {project.liveUrl && project.liveUrl !== "#" && (
-              <Button variant="outline" size="sm" className="flex items-center gap-1" asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-1 hover:bg-primary/5 hover:border-primary/50 transition-colors" asChild>
                 <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-4 h-4" />
                   Live
                 </a>
               </Button>
+            )}
+            
+            {/* Edit and Delete buttons - only visible to project author */}
+            {canManageProject && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1 hover:bg-primary/5 hover:border-primary/50 transition-colors" 
+                  onClick={handleEditProject}
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  className="flex items-center gap-1" 
+                  onClick={handleDeleteProject}
+                >
+                  <Trash className="w-4 h-4" />
+                  Delete
+                </Button>
+              </>
             )}
           </div>
 
@@ -291,7 +361,7 @@ export function ProjectCard({
               initialLikes={project.likeCount || 0}
               initialComments={project.comments || []}
               initialShares={project.shareCount || 0}
-              authorId={project.author.id}
+              authorId={project.author?.id || ''}
               initialLiked={project.likedByUser}
               githubUrl={project.githubUrl}
               liveUrl={project.liveUrl}

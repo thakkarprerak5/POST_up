@@ -17,18 +17,19 @@ interface Message {
 }
 
 interface Chat {
-  id: string;
-  userId: string;
-  name: string;
-  avatar: string;
-  isGroup: boolean;
-  participants: { id: string; name: string; avatar: string }[];
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  messages: Message[];
-  createdAt: Date;
-  updatedAt: Date;
+  _id: string
+  id?: string
+  userId: string
+  name: string
+  avatar: string
+  isGroup: boolean
+  participants: { id: string; name: string; avatar: string }[]
+  lastMessage: string
+  lastMessageTime: Date
+  unreadCount: number
+  messages: Message[]
+  createdAt: Date
+  updatedAt: Date
 }
 
 interface UseChatOptions {
@@ -107,7 +108,7 @@ export const useChat = (options?: UseChatOptions) => {
 
       const data = await response.json();
       setChats(prev => prev.map(chat => 
-        chat.id === chatId ? data.chat : chat
+        chat._id === chatId ? data.chat : chat
       ));
       return data.chat;
     } catch (err) {
@@ -138,7 +139,7 @@ export const useChat = (options?: UseChatOptions) => {
       }
 
       // Update local state immediately
-      setChats(prev => prev.filter(chat => chat.id !== chatId));
+      setChats(prev => prev.filter(chat => chat._id !== chatId));
       console.log('Chat deleted successfully from local state');
     } catch (err) {
       console.error('Delete chat error:', err);
@@ -175,7 +176,7 @@ export const useChat = (options?: UseChatOptions) => {
       
       // Update the chat in real-time with proper unread count handling
       setChats(prev => prev.map(chat => {
-        if (chat.id === chatId) {
+        if (chat._id === chatId) {
           const updatedChat = data.chat;
           // If current user sent the message, don't increase unread count
           // If someone else sent the message and this isn't the active chat, increase unread count
@@ -224,7 +225,7 @@ export const useChat = (options?: UseChatOptions) => {
       
       // Update the chat in real-time
       setChats(prev => prev.map(chat => 
-        chat.id === chatId ? data.chat : chat
+        chat._id === chatId ? data.chat : chat
       ));
       
       // Also update the active chat if it's the current one
@@ -325,10 +326,10 @@ export const useChat = (options?: UseChatOptions) => {
       'chat_1767598233944_gywlqxz9x'
     ];
     
-    if (chats.some(chat => chat?.id && problematicIds.some(id => chat.id.includes(id)))) {
+    if (chats.some(chat => chat?._id && problematicIds.some(id => chat._id.includes(id)))) {
       // Silently filter out invalid chat IDs - no need to log this
       setChats(prev => prev.filter(chat => 
-        !chat?.id || !problematicIds.some(id => chat.id.includes(id))
+        !chat?._id || !problematicIds.some(id => chat._id.includes(id))
       ));
     }
   }, [chats])

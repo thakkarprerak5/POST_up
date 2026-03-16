@@ -390,7 +390,7 @@ function SearchPageContent() {
         <Card className="hover:bg-accent/50 transition-colors h-full">
           <CardContent className="flex items-center p-4">
             <Avatar className="h-12 w-12 mr-4">
-              <AvatarImage src={user.photo} alt={user.fullName} />
+              <AvatarImage src={user.photo && user.photo.trim() ? user.photo : undefined} alt={user.fullName} />
               <AvatarFallback>
                 {user.fullName
                   .split(' ')
@@ -458,7 +458,7 @@ function SearchPageContent() {
           <CardFooter className="p-4 pt-0 flex justify-between items-center text-sm">
             <div className="flex items-center">
               <Avatar className="h-6 w-6 mr-2">
-                <AvatarImage src={project.author?.image} alt={project.author?.name} />
+                <AvatarImage src={project.author?.image && project.author?.image.trim() ? project.author.image : undefined} alt={project.author?.name} />
                 <AvatarFallback>
                   {project.author?.name
                     ?.split(' ')

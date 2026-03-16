@@ -4,57 +4,55 @@ import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import { CategoryCard } from "@/components/category-card"
-import { categories } from "@/lib/data/projects"
 
 export default function FeedPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Fetch all projects to count per category
+  // Fetch categories ONLY from /api/categories - NO frontend calculation
   useEffect(() => {
-    const fetchProjectCounts = async () => {
+    const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/projects')
-        if (response.ok) {
-          const allProjects = await response.json()
-          
-          // Count projects for each category
-          const counts: Record<string, number> = {}
-          categories.forEach(category => {
-            const categoryProjects = allProjects.filter((project: any) => {
-              // Include projects that match the category directly via tags
-              const categoryKeywords = [
-                category.name?.toLowerCase() || '',
-                category.slug?.toLowerCase() || '',
-                // Add common variations for better matching
-                category.name?.toLowerCase().replace(/\s+/g, '') || '',
-                category.slug?.toLowerCase().replace(/-/g, '') || '',
-                // Add specific mappings
-                category.slug === 'web-development' ? 'web development' : '',
-                category.slug === 'ai-ml' ? 'ai/ml' : '',
-                category.slug === 'data-analysis' ? 'data analysis' : '',
-                category.slug === 'mobile-app' ? 'mobile app' : '',
-                category.slug === 'cyber-security' ? 'cyber security' : '',
-              ].filter(Boolean)
-              
-              return project.tags?.some((tag: string) => 
-                categoryKeywords.some((keyword: string) => 
-                  tag.toLowerCase().includes(keyword) || 
-                  keyword.includes(tag.toLowerCase())
-                )
-              )
-            })
-            counts[category.slug] = categoryProjects.length
-          })
-          
-          setCategoryCounts(counts)
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch('/api/categories')
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`)
         }
+        
+        const categoriesData = await response.json()
+        
+        console.log("📊 FEED PAGE - Categories from backend:", categoriesData)
+        
+        // Validate that count field exists - build must fail if missing
+        categoriesData.forEach((category: any) => {
+          if (typeof category.count !== 'number') {
+            throw new Error(`Missing count field for category: ${category.slug}`)
+          }
+          console.log("Category from backend:", {
+            name: category.name,
+            slug: category.slug,
+            count: category.count
+          });
+        })
+        
+        // Store categories directly - NO calculation, just rendering
+        setCategories(categoriesData)
+        
       } catch (error) {
-        console.error('Error fetching project counts:', error)
+        console.error('Error fetching categories:', error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch categories')
+        setCategories([])
+      } finally {
+        setLoading(false)
       }
     }
 
-    fetchProjectCounts()
+    fetchCategories()
   }, [])
 
   return (
@@ -71,15 +69,30 @@ export default function FeedPage() {
           </div>
 
           {/* Category Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-            {categories.map((category) => (
-              <CategoryCard 
-                key={category.slug} 
-                category={category} 
-                projectCount={categoryCounts[category.slug] || 0}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="bg-muted rounded-lg h-32"></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Error loading categories: {error}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+              {categories.map((category: any) => (
+                <CategoryCard 
+                  key={category.slug} 
+                  title={category.name}
+                  count={category.count}
+                  href={`/feed/${category.slug}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

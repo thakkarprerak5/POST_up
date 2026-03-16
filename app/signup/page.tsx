@@ -164,7 +164,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-0">
       <div className="bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-md">
         <h2 className="text-2xl font-bold text-white text-center mb-6">
           Create Account

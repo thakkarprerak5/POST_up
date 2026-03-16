@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import { ProjectUploadForm } from "@/components/project-upload-form"
-import { Loader2 } from "lucide-react"
+import { Loader2, ArrowLeft } from "lucide-react"
 
 export default function EditProjectPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -83,8 +83,19 @@ export default function EditProjectPage() {
         <div className="py-8">
           {/* Page Title */}
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-foreground">Edit Project</h1>
-            <p className="text-muted-foreground mt-1">Update your project information</p>
+            <div className="flex items-start gap-8">
+              <button
+                onClick={() => router.back()}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-200 rounded-xl border shadow-sm"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-foreground mb-2">Edit Project</h1>
+                <p className="text-muted-foreground text-base leading-relaxed">Update your project information and make changes as needed</p>
+              </div>
+            </div>
           </div>
 
           {/* Edit Form */}

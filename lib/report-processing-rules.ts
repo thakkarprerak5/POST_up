@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Report, { updateReportStatus } from '@/models/Report';
 import { createActivityLog } from '@/models/AdminActivityLog';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import User from '@/models/User';
+import Project from '@/models/Project';
+import Comment from '@/models/Comment';
+import Chat from '@/models/Chat';
+import { NextRequest } from 'mongodb';
 
 // 🔹 Report Processing Constants and Rules
 export const REPORT_PROCESSING_RULES = {
@@ -45,16 +48,16 @@ export const REPORT_PROCESSING_RULES = {
   // Violation Severity Levels
   VIOLATION_SEVERITY: {
     LOW: 'low',
-    MEDIUM: 'medium', 
+    MEDIUM: 'medium',
     HIGH: 'high',
     CRITICAL: 'critical'
   }
 } as const;
 
 // 🔹 Helper Functions for Role-Based Access Control
-async function checkAdminPermissions(request: NextRequest, requiredRole: 'admin' | 'super_admin' = 'admin') {
-  const session = await getServerSession(authOptions);
-  
+async function checkAdminPermissions(request: NextRequest, requiredRole: 'admin' | 'super-admin' = 'admin') {
+  const session = await getServerSession();
+
   if (!session?.user?.id) {
     return { error: NextResponse.json({ error: 'Unauthorized - No session found' }, { status: 401 }) };
   }
@@ -67,23 +70,24 @@ async function checkAdminPermissions(request: NextRequest, requiredRole: 'admin'
 
   // Check user role and permissions
   const userRole = user.type;
-  
-  if (requiredRole === 'super_admin') {
-    if (userRole !== 'super_admin') {
+  const isSuperAdmin = userRole === 'super-admin';
+
+  if (requiredRole === 'super-admin') {
+    if (userRole !== 'super-admin') {
       return { error: NextResponse.json({ error: 'Forbidden - Super Admin access required' }, { status: 403 }) };
     }
   } else {
-    if (userRole !== 'admin' && userRole !== 'super_admin') {
+    if (userRole !== 'admin' && userRole !== 'super-admin') {
       return { error: NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 }) };
     }
   }
 
-  return { 
-    user, 
-    session, 
+  return {
+    user,
+    session,
     userRole,
-    isSuperAdmin: userRole === 'super_admin',
-    isAdmin: userRole === 'admin' || userRole === 'super_admin'
+    isSuperAdmin,
+    isAdmin: userRole === 'admin' || userRole === 'super-admin'
   };
 }
 
@@ -91,7 +95,7 @@ async function checkAdminPermissions(request: NextRequest, requiredRole: 'admin'
 function validateAdminAction(action: string, userRole: string): { allowed: boolean; reason?: string } {
   const adminRestrictedActions = ['deleteContent', 'banUser', 'suspendUser', 'changeRole'];
   const superAdminOnlyActions = ['finalAuthority', 'bypassAudit'];
-  
+
   if (userRole === 'admin') {
     if (adminRestrictedActions.includes(action)) {
       return { allowed: false, reason: `Admins cannot perform action: ${action}` };
@@ -100,87 +104,15 @@ function validateAdminAction(action: string, userRole: string): { allowed: boole
       return { allowed: false, reason: `Super Admin only action: ${action}` };
     }
   }
-  
+
   return { allowed: true };
-}
-
-// 🔹 Report Processing Logic
-async function processReportAction(
-  reportId: string,
-  action: string,
-  actionData: any,
-  adminUser: any,
-  request: NextRequest
-) {
-  const { userRole, isSuperAdmin } = adminUser;
-  
-  // Get report details
-  const report = await Report.findById(reportId);
-  if (!report) {
-    return { error: NextResponse.json({ error: 'Report not found' }, { status: 404 }) };
-  }
-
-  // Validate action based on role
-  const actionValidation = validateAdminAction(action, userRole);
-  if (!actionValidation.allowed) {
-    return { error: NextResponse.json({ error: actionValidation.reason || 'Action not allowed' }, { status: 403 }) };
-  }
-
-  // Process different actions
-  let result;
-  switch (action) {
-    case 'review':
-      result = await handleReviewAction(report, actionData, adminUser);
-      break;
-      
-    case 'resolve':
-      result = await handleResolveAction(report, actionData, adminUser, isSuperAdmin);
-      break;
-      
-    case 'reject':
-      result = await handleRejectAction(report, actionData, adminUser, isSuperAdmin);
-      break;
-      
-    case 'assign':
-      result = await handleAssignAction(report, actionData, adminUser);
-      break;
-      
-    case 'escalate':
-      if (!isSuperAdmin) {
-        return { error: NextResponse.json({ error: 'Only Super Admins can escalate reports' }, { status: 403 }) };
-      }
-      result = await handleEscalateAction(report, actionData, adminUser);
-      break;
-      
-    case 'deleteContent':
-      if (!isSuperAdmin) {
-        return { error: NextResponse.json({ error: 'Only Super Admins can delete content' }, { status: 403 }) };
-      }
-      result = await handleDeleteContentAction(report, actionData, adminUser);
-      break;
-      
-    case 'banUser':
-      if (!isSuperAdmin) {
-        return { error: NextResponse.json({ error: 'Only Super Admins can ban users' }, { status: 403 }) };
-      }
-      result = await handleBanUserAction(report, actionData, adminUser);
-      break;
-      
-    default:
-      return { error: NextResponse.json({ error: 'Invalid action' }, { status: 400 }) };
-  }
-
-  // Log the action
-  await logAdminAction(adminUser, action, report, result, request);
-  
-  return result;
 }
 
 // 🔹 Action Handler Functions
 async function handleReviewAction(report: any, actionData: any, adminUser: any) {
   const updatedReport = await Report.findByIdAndUpdate(
     report._id,
-    { 
+    {
       status: REPORT_PROCESSING_RULES.REPORT_STATUS_FLOW.UNDER_REVIEW,
       assignedTo: adminUser.user._id.toString(),
       adminNotes: actionData.notes || ''
@@ -228,7 +160,7 @@ async function handleRejectAction(report: any, actionData: any, adminUser: any, 
 async function handleAssignAction(report: any, actionData: any, adminUser: any) {
   const updatedReport = await Report.findByIdAndUpdate(
     report._id,
-    { 
+    {
       status: REPORT_PROCESSING_RULES.REPORT_STATUS_FLOW.UNDER_REVIEW,
       assignedTo: adminUser.user._id.toString()
     },
@@ -245,7 +177,7 @@ async function handleAssignAction(report: any, actionData: any, adminUser: any) 
 async function handleEscalateAction(report: any, actionData: any, adminUser: any) {
   const updatedReport = await Report.findByIdAndUpdate(
     report._id,
-    { 
+    {
       status: REPORT_PROCESSING_RULES.REPORT_STATUS_FLOW.UNDER_REVIEW,
       assignedTo: adminUser.user._id.toString(),
       escalatedTo: adminUser.user._id.toString(),
@@ -262,46 +194,235 @@ async function handleEscalateAction(report: any, actionData: any, adminUser: any
 }
 
 async function handleDeleteContentAction(report: any, actionData: any, adminUser: any) {
-  // This would integrate with your content deletion system
-  // For now, just log the action
-  return NextResponse.json({
-    message: 'Content deletion initiated',
-    action: 'deleteContent'
-  });
+  try {
+    await connectDB();
+    
+    // Delete actual content based on target type
+    switch (report.targetType) {
+      case 'project':
+        await Project.findByIdAndDelete(report.targetId);
+        console.log(`🗑️ Deleted project: ${report.targetId}`);
+        break;
+        
+      case 'comment':
+        // Comment model now exists
+        try {
+          await Comment.findByIdAndDelete(report.targetId);
+          console.log(`🗑️ Deleted comment: ${report.targetId}`);
+        } catch (err) {
+          console.log('⚠️ Comment model not found, skipping deletion');
+        }
+        break;
+        
+      case 'user':
+        // Don't delete user, just ban them
+        await User.findByIdAndUpdate(report.reportedUserId, {
+          isActive: false,
+          isBlocked: true,
+          banStatus: 'PROPER_BAN',
+          banReason: 'Account deleted due to policy violations',
+          bannedBy: adminUser.user._id.toString(),
+          banExpiresAt: null
+        });
+        console.log(`🚫 Banned user: ${report.reportedUserId}`);
+        break;
+        
+      case 'chat':
+        // Chat model exists
+        try {
+          await Chat.findByIdAndDelete(report.targetId);
+          console.log(`🗑️ Deleted chat: ${report.targetId}`);
+        } catch (err) {
+          console.log('⚠️ Chat model not found, skipping deletion');
+        }
+        break;
+    }
+
+    // Log deletion action
+    await createActivityLog({
+      adminId: adminUser.user._id.toString(),
+      adminName: adminUser.user.fullName,
+      action: 'delete_content',
+      targetType: report.targetType,
+      targetId: report.targetId,
+      targetName: report.targetDetails?.title || report.targetId,
+      description: `Deleted ${report.targetType} due to: ${report.reason}`,
+      ipAddress: adminUser.ipAddress || 'unknown'
+    });
+
+    return NextResponse.json({
+      message: `${report.targetType} deleted successfully`,
+      action: 'deleteContent',
+      deletedType: report.targetType,
+      deletedId: report.targetId
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting content:', error);
+    return NextResponse.json({
+      error: 'Failed to delete content',
+      details: error.message
+    }, { status: 500 });
+  }
 }
 
 async function handleBanUserAction(report: any, actionData: any, adminUser: any) {
-  // This would integrate with your user management system
-  // For now, just log the action
-  return NextResponse.json({
-    message: 'User ban initiated',
-    action: 'banUser'
-  });
+  try {
+    await connectDB();
+    
+    const { banType, banDuration, banReason } = actionData;
+    
+    // Calculate ban expiration
+    let banExpiresAt = null;
+    if (banType === 'SOFT_BAN' && banDuration) {
+      const durationMap = {
+        '1_day': 1,
+        '1_week': 7,
+        '1_month': 30,
+        'permanent': null
+      };
+      const days = durationMap[banDuration];
+      if (days) {
+        banExpiresAt = new Date();
+        banExpiresAt.setDate(banExpiresAt.getDate() + days);
+      }
+    }
+    
+    // Update user with ban information
+    const updatedUser = await User.findByIdAndUpdate(
+      report.reportedUserId,
+      {
+        isActive: banType !== 'PROPER_BAN', // Proper ban = inactive
+        isBlocked: true,
+        banStatus: banType,
+        banExpiresAt,
+        banReason: banReason || `Banned for: ${report.reason}`,
+        bannedBy: adminUser.user._id.toString()
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return NextResponse.json({
+        error: 'User not found',
+        action: 'banUser'
+      }, { status: 404 });
+    }
+
+    // Log ban action
+    await createActivityLog({
+      adminId: adminUser.user._id.toString(),
+      adminName: adminUser.user.fullName,
+      action: 'ban_user',
+      targetType: 'user',
+      targetId: report.reportedUserId,
+      targetName: updatedUser.fullName,
+      description: `Banned user (${banType}) for: ${report.reason}. Expires: ${banExpiresAt || 'Permanent'}`,
+      ipAddress: adminUser.ipAddress || 'unknown',
+      metadata: {
+        banType,
+        banExpiresAt,
+        originalReportId: report._id
+      }
+    });
+
+    return NextResponse.json({
+      message: `User ${banType.toLowerCase()} successfully`,
+      action: 'banUser',
+      bannedUser: {
+        id: updatedUser._id,
+        name: updatedUser.fullName,
+        email: updatedUser.email,
+        banStatus: banType,
+        banExpiresAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error banning user:', error);
+    return NextResponse.json({
+      error: 'Failed to ban user',
+      details: error.message
+    }, { status: 500 });
+  }
 }
 
-// 🔹 Audit Logging Function
-async function logAdminAction(
-  adminUser: any, 
-  action: string, 
-  report: any, 
-  result: any, 
-  request: NextRequest
+// 🔹 Main Report Action Processing Function
+export async function processReportAction(
+  action: string,
+  report: any,
+  actionData: any,
+  request: NextRequest,
+  userId: string
 ) {
-  const logData = {
-    adminId: adminUser.user._id.toString(),
-    adminName: adminUser.user.fullName,
-    adminEmail: adminUser.user.email,
-    action: action,
-    actionType: 'update',
-    targetType: 'report',
-    targetId: report._id.toString(),
-    targetName: `${report.targetType} - ${report.targetDetails?.title || report.targetId}`,
-    description: `${action} on report: ${report.reason}`,
-    ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-    userAgent: request.headers.get('user-agent') || 'unknown'
-  };
+  try {
+    await connectDB();
+    
+    // Get admin user info
+    const adminUser = await checkAdminPermissions(request);
+    if (adminUser.error) {
+      return adminUser.error;
+    }
 
-  await createActivityLog(logData);
+    // Validate action permissions
+    const actionValidation = validateAdminAction(action, adminUser.userRole);
+    if (!actionValidation.allowed) {
+      return NextResponse.json({ 
+        error: actionValidation.reason 
+      }, { status: 403 });
+    }
+
+    // Process the action
+    let result;
+    switch (action) {
+      case 'review':
+        result = await handleReviewAction(report, actionData, adminUser);
+        break;
+      case 'resolve':
+        result = await handleResolveAction(report, actionData, adminUser, adminUser.isSuperAdmin);
+        break;
+      case 'reject':
+        result = await handleRejectAction(report, actionData, adminUser, adminUser.isSuperAdmin);
+        break;
+      case 'escalate':
+        result = await handleEscalateAction(report, actionData, adminUser);
+        break;
+      case 'deleteContent':
+        result = await handleDeleteContentAction(report, actionData, adminUser);
+        break;
+      case 'banUser':
+        result = await handleBanUserAction(report, actionData, adminUser);
+        break;
+      default:
+        return NextResponse.json({ 
+          error: 'Invalid action' 
+        }, { status: 400 });
+    }
+
+    // Log the action
+    await createActivityLog({
+      adminId: adminUser.user._id.toString(),
+      adminName: adminUser.user.fullName,
+      adminEmail: adminUser.user.email,
+      action: action,
+      actionType: 'update',
+      targetType: 'report',
+      targetId: report._id.toString(),
+      targetName: `${report.targetType} - ${report.targetDetails?.title || report.targetId}`,
+      description: `${action} on report: ${report.reason}`,
+      ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+      userAgent: request.headers.get('user-agent') || 'unknown'
+    });
+
+    return result;
+
+  } catch (error) {
+    console.error('❌ Error processing report action:', error);
+    return NextResponse.json({
+      error: 'Failed to process action',
+      details: error.message
+    }, { status: 500 });
+  }
 }
 
 // 🔹 Report Status Validation
@@ -310,110 +431,16 @@ function validateReportStatusTransition(currentStatus: string, newStatus: string
     'pending': ['under_review', 'rejected'],
     'under_review': ['resolved', 'rejected', 'escalated'],
     'resolved': [], // Final state
-    'rejected': []  // Final state
+    'rejected': [], // Final state
+    'escalated': ['resolved', 'rejected'] // Can still be resolved/rejected after escalation
   };
 
-  if (!validTransitions[currentStatus] || !validTransitions[currentStatus].includes(newStatus)) {
-    return { allowed: false, reason: `Invalid status transition from ${currentStatus} to ${newStatus}` };
+  if (validTransitions[currentStatus] && !validTransitions[currentStatus].includes(newStatus)) {
+    return { 
+      allowed: false, 
+      reason: `Cannot transition from ${currentStatus} to ${newStatus}` 
+    };
   }
 
   return { allowed: true };
-}
-
-// 🔹 Main API Handlers
-export async function GET(request: NextRequest) {
-  try {
-    const authResult = await checkAdminPermissions(request, 'admin');
-    if (authResult.error) return authResult.error;
-
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || '';
-    const targetType = searchParams.get('targetType') || '';
-    const priority = searchParams.get('priority') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-
-    // Get reports with filtering
-    const { getReports, getReportsCount, getReportStats } = await import('@/models/Report');
-    
-    const [reports, totalCount, stats] = await Promise.all([
-      getReports({
-        status: status || undefined,
-        targetType: targetType || undefined,
-        priority: priority || undefined,
-        page,
-        limit
-      }),
-      getReportsCount({
-        status: status || undefined,
-        targetType: targetType || undefined,
-        priority: priority || undefined
-      }),
-      getReportStats()
-    ]);
-
-    return NextResponse.json({
-      reports,
-      stats,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      },
-      rules: REPORT_PROCESSING_RULES
-    });
-  } catch (error) {
-    console.error('Reports API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch reports' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const authResult = await checkAdminPermissions(request, 'admin');
-    if (authResult.error) return authResult.error;
-    
-    const { action, ...actionData } = await request.json();
-    const reportId = params.id;
-
-    const result = await processReportAction(reportId, action, actionData, authResult, request);
-    return result;
-    
-  } catch (error) {
-    console.error('Report action API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process report action' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const authResult = await checkAdminPermissions(request, 'admin');
-    if (authResult.error) return authResult.error;
-    
-    const { action, ...actionData } = await request.json();
-    const reportId = params.id;
-
-    const result = await processReportAction(reportId, action, actionData, authResult, request);
-    return result;
-    
-  } catch (error) {
-    console.error('Report action API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process report action' },
-      { status: 500 }
-    );
-  }
 }

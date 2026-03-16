@@ -2,42 +2,28 @@ const mongoose = require('mongoose');
 
 async function checkUsers() {
   try {
-    console.log('👥 Checking Users in Database\n');
-    
-    // Connect to database
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/post-up');
-    console.log('✅ Connected to database');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/POST_up');
+    console.log('✅ Connected to MongoDB');
     
     const db = mongoose.connection.db;
-    const usersCollection = db.collection('users');
+    const users = await db.collection('users').find({}).toArray();
     
-    // Check all users
-    const users = await usersCollection.find({}).toArray();
-    console.log(`📊 Found ${users.length} users in database`);
+    console.log('👥 All users in database:');
+    users.forEach((user, index) => {
+      console.log(`  ${index + 1}. ID: ${user._id}, Name: ${user.fullName}, Email: ${user.email}, Type: ${user.type}`);
+    });
     
-    if (users.length === 0) {
-      console.log('❌ No users found! You need to create a user account first.');
-      console.log('💡 Go to http://localhost:3000/signup to create an account');
-      console.log('💡 Or go to http://localhost:3000/login if you already have one');
-    } else {
-      console.log('\n📋 Available Users:');
-      users.forEach((user, index) => {
-        console.log(`   ${index + 1}. ${user.fullName} (${user.email})`);
-        console.log(`      ID: ${user._id}`);
-        console.log(`      Type: ${user.type}`);
-        console.log(`      Active: ${user.isActive ? '✅' : '❌'}`);
-      });
-      
-      console.log('\n🔑 To test upload functionality:');
-      console.log('   1. Go to http://localhost:3000/login');
-      console.log('   2. Login with one of the above accounts');
-      console.log('   3. Then try uploading a project');
-    }
+    // Look for the specific mentor ID from assignment
+    const mentorId = '6932becc696e13382a825371';
+    const mentor = users.find(user => user._id.toString() === mentorId);
     
+    console.log(`\n🔍 Looking for mentor with ID: ${mentorId}`);
+    console.log(`🔍 Mentor found: ${mentor ? `${mentor.fullName} (${mentor.email})` : 'None'}`);
+    
+    process.exit(0);
   } catch (error) {
-    console.error('❌ Check failed:', error.message);
-  } finally {
-    await mongoose.disconnect();
+    console.error('❌ Error:', error);
+    process.exit(1);
   }
 }
 

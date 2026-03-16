@@ -8,7 +8,7 @@ export async function withAuth(handler: (req: NextRequest, context?: any) => Pro
   return async (req: NextRequest, context?: any) => {
     try {
       const session = await getServerSession(authOptions);
-      
+
       if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -37,7 +37,7 @@ export async function withAdminAuth(handler: (req: NextRequest, context?: any) =
   return async (req: NextRequest, context?: any) => {
     try {
       const session = await getServerSession(authOptions);
-      
+
       if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -49,7 +49,7 @@ export async function withAdminAuth(handler: (req: NextRequest, context?: any) =
       }
 
       // Check if user is admin or super admin
-      if (user.type !== 'admin' && user.type !== 'super_admin') {
+      if (user.type !== 'admin' && user.type !== 'super-admin') {
         return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
       }
 
@@ -71,7 +71,7 @@ export async function withSuperAdminAuth(handler: (req: NextRequest, context?: a
   return async (req: NextRequest, context?: any) => {
     try {
       const session = await getServerSession(authOptions);
-      
+
       if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -83,7 +83,7 @@ export async function withSuperAdminAuth(handler: (req: NextRequest, context?: a
       }
 
       // Check if user is super admin
-      if (user.type !== 'super_admin') {
+      if (user.type !== 'super-admin') {
         return NextResponse.json({ error: 'Forbidden - Super Admin access required' }, { status: 403 });
       }
 
@@ -105,7 +105,7 @@ export async function withReportingAuth(handler: (req: NextRequest, context?: an
   return async (req: NextRequest, context?: any) => {
     try {
       const session = await getServerSession(authOptions);
-      
+
       if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -117,7 +117,7 @@ export async function withReportingAuth(handler: (req: NextRequest, context?: an
       }
 
       // Check if user is allowed to report (not admin or super admin)
-      if (user.type === 'admin' || user.type === 'super_admin') {
+      if (user.type === 'admin' || user.type === 'super-admin') {
         return NextResponse.json({ error: 'Admins and Super Admins cannot report content' }, { status: 403 });
       }
 

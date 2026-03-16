@@ -9,7 +9,7 @@ import { connectDB } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is allowed to report (not admin or super admin)
-    if (user.type === 'admin' || user.type === 'super_admin') {
+    if (user.type === 'admin' || user.type === 'super-admin') {
       return NextResponse.json({ error: 'Admins and Super Admins cannot report content' }, { status: 403 });
     }
 
@@ -71,10 +71,15 @@ export async function POST(request: NextRequest) {
           }
           break;
         case 'comment':
-          // Get comment details - implementation depends on your comment structure
-          targetDetails = {
-            content: description // Use description as content for now
-          };
+          const Comment = require('@/models/Comment').default;
+          const comment = await Comment.findById(targetId).populate('author', 'fullName');
+          if (comment) {
+            targetDetails = {
+              content: comment.content,
+              authorName: comment.author?.fullName || 'Unknown Author',
+              title: 'Comment'
+            };
+          }
           break;
         case 'user':
           const reportedUser = await User.findById(reportedUserId);
@@ -86,10 +91,29 @@ export async function POST(request: NextRequest) {
           }
           break;
         case 'chat':
-          // Get chat message details - implementation depends on your chat structure
-          targetDetails = {
-            content: description
-          };
+          const Chat = require('@/models/Chat').default;
+          // Try to find chat by message ID
+          const chatWithMsg = await Chat.findOne({ 'messages.id': targetId }).exec();
+
+          if (chatWithMsg) {
+            const message = chatWithMsg.messages.find((m: any) => m.id === targetId);
+            if (message) {
+              targetDetails = {
+                content: message.content,
+                authorName: message.senderName,
+                title: 'Chat Message'
+              };
+            }
+          } else {
+            // Fallback: If targetId is the chatId itself
+            const chat = await Chat.findOne({ id: targetId }).exec();
+            if (chat) {
+              targetDetails = {
+                title: chat.name || 'Chat',
+                description: `Reported Chat: ${chat.isGroup ? 'Group' : 'Direct'} Chat`
+              };
+            }
+          }
           break;
       }
     } catch (error) {
@@ -114,8 +138,8 @@ export async function POST(request: NextRequest) {
 
     const report = await createReport(reportData);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       report: {
         id: report._id,
         status: report.status,
@@ -133,7 +157,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

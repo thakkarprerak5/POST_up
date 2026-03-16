@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Assignment</title>
+</head>
+<body>
+    <h1>Test Admin Assignment Request</h1>
+    <button onclick="testAdminAssignment()">Create Test Project with Admin Assignment</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAdminAssignment() {
+            const formData = new FormData();
+            formData.append('title', 'Test Admin Assignment Project ' + Date.now());
+            formData.append('description', 'This is a test project to verify admin assignment requests work');
+            formData.append('type', 'individual');
+            formData.append('assignmentMethod', 'admin');
+            
+            // Create a dummy file
+            const blob = new Blob(['test content'], { type: 'text/plain' });
+            formData.append('proposalFile', blob, 'test-proposal.txt');
+
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h3>Result:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+                
+                if (result.adminRequestCreated) {
+                    console.log('✅ Admin assignment request should be created');
+                    // Check if it appears in the admin panel
+                    setTimeout(() => {
+                        window.open('/admin/students', '_blank');
+                    }, 2000);
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h3>Error:</h3>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

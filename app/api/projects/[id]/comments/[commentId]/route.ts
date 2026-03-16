@@ -46,7 +46,7 @@ export async function PATCH(
     if (!project) {
       project = await Project.findOne({ id: projectId });
     }
-    
+
     if (!project) {
       return NextResponse.json(
         { success: false, error: 'Project not found' },
@@ -68,14 +68,14 @@ export async function PATCH(
     const comment = project.comments[commentIndex];
 
     // Check if the current user is the comment author
-    const isCommentAuthor = comment.userId === user._id.toString() || 
-                           comment.userId === authSession.user.email ||
-                           comment.userId === user.email;
-    
+    const isCommentAuthor = comment.userId === user._id.toString() ||
+      comment.userId === authSession.user.email ||
+      comment.userId === user.email;
+
     if (!isCommentAuthor) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: 'Unauthorized to update this comment',
           details: 'You must be the comment author to update this comment'
         },
@@ -106,8 +106,8 @@ export async function PATCH(
   } catch (error: any) {
     console.error('Error in PATCH comment handler:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: error.message || 'Failed to update comment',
         details: error.details
       },
@@ -122,11 +122,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   const { id: projectId, commentId } = await params;
-  
+
   console.log('=== DELETE COMMENT DEBUG ===');
   console.log('Project ID:', projectId);
   console.log('Comment ID:', commentId);
-  
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -154,12 +154,12 @@ export async function DELETE(
     // Find project by _id or custom id
     let project = await Project.findById(projectId);
     console.log('Project found by _id:', !!project);
-    
+
     if (!project) {
       project = await Project.findOne({ id: projectId });
       console.log('Project found by custom id:', !!project);
     }
-    
+
     if (!project) {
       console.log('Project not found with either _id or custom id');
       return NextResponse.json(
@@ -190,10 +190,10 @@ export async function DELETE(
 
     // Check if user is the comment author or project author
     // For testing purposes, allow deletion if user IDs match or if it's a test comment
-    const isCommentAuthor = comment.userId === user._id.toString() || 
-                            (comment.userId === 'test123' && session.user.email);
+    const isCommentAuthor = comment.userId === user._id.toString() ||
+      (comment.userId === 'test123' && session.user.email);
     const isProjectAuthor = project.author?.id?.toString() === user._id.toString();
-    
+
     if (!isCommentAuthor && !isProjectAuthor) {
       console.log('User not authorized. Comment author:', comment.userId, 'Current user:', user._id.toString(), 'Project author:', project.author?.id?.toString());
       return NextResponse.json(

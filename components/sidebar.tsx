@@ -1,6 +1,6 @@
 "use client";
 
-import { User, FolderKanban, LogOut, X, Shield, Settings, Users, FileText, BarChart3, Activity } from "lucide-react";
+import { User, FolderKanban, LogOut, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -18,19 +18,6 @@ export const menuItems = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { data: session } = useSession();
-  
-  const isAdmin = session?.user?.role === 'admin' || session?.user?.role === 'super_admin';
-  
-  const adminMenuItems = [
-    { name: "Admin Dashboard", href: "/admin", icon: Shield },
-    { name: "Users Management", href: "/admin/users", icon: Users },
-    { name: "Reports", href: "/admin/reports", icon: FileText },
-    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-    { name: "Activity Logs", href: "/admin/activity", icon: Activity },
-    { name: "Settings", href: "/admin/settings", icon: Settings },
-  ];
-
-  const allMenuItems = isAdmin ? [...adminMenuItems, ...menuItems] : menuItems;
 
   return (
     <>
@@ -44,18 +31,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-sidebar border-r border-border transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 z-50 h-full w-72 bg-sidebar border-r border-border transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full bg-background">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <span className="text-lg font-semibold">Menu</span>
+          <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+            <span className="text-lg font-semibold text-foreground">Menu</span>
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full w-9 h-9 hover:bg-muted"
+              className="rounded-full w-9 h-9 hover:bg-secondary/50 transition-colors duration-200"
               onClick={onClose}
             >
               <X className="h-5 w-5" />
@@ -63,7 +49,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* User Profile Section */}
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-border bg-card">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
                 <AvatarImage
@@ -71,9 +57,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 />
                 <AvatarFallback>U</AvatarFallback>
               </Avatar>
-              <div>
-                <p className="font-medium">{session?.user?.name || "User"}</p>
-                <p className="text-sm text-muted-foreground">
+              <div className="overflow-hidden">
+                <p className="font-medium text-foreground truncate">{session?.user?.name || "User"}</p>
+                <p className="text-sm text-muted-foreground truncate">
                   {session?.user?.email || ""}
                 </p>
               </div>
@@ -81,16 +67,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Menu Items */}
-          <nav className="flex-1 p-4">
+          <nav className="flex-1 p-4 overflow-y-auto">
             <ul className="space-y-1">
-              {allMenuItems.map((item) => (
+              {menuItems.map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
                     onClick={onClose}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="h-5 w-5 text-muted-foreground" />
                     <span>{item.name}</span>
                   </Link>
                 </li>
@@ -99,10 +85,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </nav>
 
           {/* Logout */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border bg-card space-y-2">
             <Button
               variant="ghost"
-              className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground hover:bg-muted"
+              className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50"
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="h-5 w-5" />

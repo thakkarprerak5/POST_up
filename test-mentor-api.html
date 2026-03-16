@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mentor API Test</title>
+</head>
+<body>
+    <h1>Testing Mentor Identity Resolution</h1>
+    <button onclick="testMentorAPI()">Test Mentor API</button>
+    <button onclick="testProfileAPI()">Test Profile API</button>
+    <div id="results"></div>
+
+    <script>
+        async function testMentorAPI() {
+            try {
+                const response = await fetch('http://localhost:3001/api/mentors/by-email?email=sgsab@gmail.com');
+                const data = await response.json();
+                document.getElementById('results').innerHTML = '<h3>Mentor API Response:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('results').innerHTML = '<h3>Error:</h3><pre>' + error.message + '</pre>';
+            }
+        }
+
+        async function testProfileAPI() {
+            try {
+                const response = await fetch('http://localhost:3001/api/profile');
+                const data = await response.json();
+                document.getElementById('results').innerHTML = '<h3>Profile API Response:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('results').innerHTML = '<h3>Error:</h3><pre>' + error.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>

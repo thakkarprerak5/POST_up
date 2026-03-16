@@ -60,7 +60,7 @@ export function MonthlyActivityLeaderboard({ users }: MonthlyActivityLeaderboard
                 {/* Avatar & info */}
                 <div className="flex flex-1 items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                    {user.avatar && <AvatarImage src={user.avatar.trim() ? user.avatar : undefined} alt={user.name} />}
                     <AvatarFallback>
                       {(user.name || "U")
                         .split(" ")

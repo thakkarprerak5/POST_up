@@ -150,7 +150,7 @@ export function MyActivity() {
         {/* User Profile Section */}
         <div className="flex items-center gap-3 mb-4">
           <Avatar className="h-12 w-12">
-            <AvatarImage src={userProfile.avatar} alt={userProfile.name || "User"} />
+            <AvatarImage src={userProfile.avatar && userProfile.avatar.trim() ? userProfile.avatar : undefined} alt={userProfile.name || "User"} />
             <AvatarFallback>
               {(userProfile.name || "U").charAt(0).toUpperCase()}
             </AvatarFallback>

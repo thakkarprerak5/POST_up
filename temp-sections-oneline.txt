@@ -1,0 +1,80 @@
+{/* Uploaded Projects */}
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
+                Uploaded Projects
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {mentorProjects.length > 0 ? (
+                <div className="space-y-4">
+                  {mentorProjects.map((project) => (
+                    <div
+                      key={`mentor-project-${project._id}-${project.title}`}
+                      className="group rounded-lg border border-border overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/projects/${project._id}`)}
+                    >
+                      <div className="flex gap-4 p-4">
+                        <div className="w-24 h-24 relative flex-shrink-0 rounded-md overflow-hidden bg-muted">
+                          <Image
+                            src={project.images?.[0] || "/placeholder.svg"}
+                            alt={project.title || "Project image"}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-foreground mb-1 truncate">{project.title}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{project.description}</p>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <span>❤️</span> {project.likeCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span>💬</span> {project.commentsCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span>🔄</span> {project.shareCount || 0}
+                            </span>
+                          </div>
+                          {project.tags && project.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {project.tags.slice(0, 3).map((tag: string, index: number) => (
+                                <span
+                                  key={`tag-${index}-${tag}`}
+                                  className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {project.tags.length > 3 && (
+                                <span className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded-full">
+                                  +{project.tags.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground font-medium">No projects uploaded yet</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {isOwner ? "Upload your first project to showcase your work" : "This mentor hasn't uploaded any projects yet"}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Supervised Projects */}
+          <div className="space-y-6">
+            <SupervisedProjects 
+              mentorId={mentor._id || mentor.id} 
+            />
+          </div>

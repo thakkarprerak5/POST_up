@@ -153,7 +153,7 @@ export function ProjectCardClean({
               {project.author.name === 'ganpat' ? (
                 <AvatarImage src="/uploads/ganpat-profile-photo.jpg" alt={project.author.name} />
               ) : (
-                <AvatarImage src={project.author.image || project.author.avatar} alt={project.author.name} />
+                <AvatarImage src={project.author.image && project.author.image.trim() ? project.author.image : (project.author.avatar && project.author.avatar.trim() ? project.author.avatar : undefined)} alt={project.author.name} />
               )}
               <AvatarFallback>
                 {project.author.name.charAt(0).toUpperCase()}

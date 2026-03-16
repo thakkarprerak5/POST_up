@@ -1,137 +1,170 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
-import { StudentProfile } from '@/components/student-profile'
-import { MentorProfile } from '@/components/mentor-profile'
-import { Header } from '@/components/header'
-import { Sidebar } from '@/components/sidebar'
-import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
-import { use } from 'react'
+import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams, useRouter } from 'next/navigation';
+import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { StudentProfile } from "@/components/student-profile";
+import MentorProfile from "@/components/mentor-profile";
+import ProfileHeader from "@/app/profile/ProfileHeader";
+import { Loader2 } from 'lucide-react';
+import { Header } from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
 
-export default function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+export default function PublicProfilePage() {
+  const { data: session } = useSession();
+  const params = useParams();
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Unwrap params Promise for Next.js 15+
-  const resolvedParams = use(params)
-  const userId = resolvedParams.id
+  // Get the target user ID from the URL params
+  const targetUserId = params?.id as string;
 
+  // 1. Fetch The Public User Data
   const { data: user, isLoading, error } = useQuery({
-    queryKey: ['publicProfile', userId],
+    queryKey: ['public-profile', targetUserId],
     queryFn: async () => {
-      const res = await fetch(`/api/profile?id=${encodeURIComponent(userId || '')}`)
-      if (!res.ok) throw new Error('Failed to fetch profile')
-      return res.json()
+      // Fetch THEIR profile using the ID
+      const res = await fetch(`/api/profile?id=${targetUserId}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+      return res.json();
     },
-    enabled: Boolean(userId),
+    enabled: !!targetUserId,
     retry: 1,
-  })
+  });
 
-  const { data: session } = useQuery({
-    queryKey: ['session'],
-    queryFn: async () => {
-      const res = await fetch('/api/auth/session')
-      return res.json()
-    },
-  })
-
-  const isOwner = session?.user?.id === userId
-
+  // 2. Loading State
   if (isLoading) {
     return (
       <div className="pt-10 min-h-screen bg-background">
         <Header />
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading profile...</span>
         </div>
       </div>
-    )
+    );
   }
 
-  if (error || !user) {
+  // 3. Error State
+  if (error) {
     return (
       <div className="pt-10 min-h-screen bg-background">
         <Header />
-        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-          <p>User not found</p>
+        <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-4">
+          <p className="text-red-500 mb-4">User not found or profile is private.</p>
+          <Button onClick={() => router.push('/feed')}>Go Back to Feed</Button>
         </div>
       </div>
-    )
+    );
   }
 
-  // render mentor or student profile; mark isOwner=false
-  if (user.type === 'mentor') {
+  if (!user) return null;
+
+  // 4. Determine if viewing own profile
+  const isOwner = session?.user?.email === user.email;
+
+  // 🛡️ Safety Defaults for Public View
+  const safeProfile = user.profile || {};
+  // Use a fallback avatar helper if photo is missing
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || 'User')}&background=random`;
+  const defaultBanner = '/defaults/default-banner.jpg';
+
+  // =========================================================
+  // 🧑‍🏫 MENTOR / ADMIN VIEW
+  // =========================================================
+  if (['mentor', 'admin', 'super-admin'].includes(user.type)) {
     const mentorData = {
-      _id: user._id, // Add the _id field for follow state
-      name: user.fullName,
-      title: user.profile?.position || 'Mentor',
+      _id: user._id,
+      id: user._id,
+      fullName: user.fullName || "Mentor",
+      name: user.fullName || "Mentor",
+      title: safeProfile.position || (user.type === 'admin' ? 'Administrator' : 'Mentor'),
       email: user.email,
-      avatar: user.photo || '',
-      bio: user.profile?.bio || '',
-      expertise: user.profile?.expertise || [],
-      department: user.profile?.department || '',
-      researchAreas: user.profile?.researchAreas || [],
-      achievements: user.profile?.achievements || [],
-      officeHours: user.profile?.officeHours || '',
-      socialLinks: user.profile?.socialLinks || {},
-      projectsSupervised: user.profile?.projectsSupervised || [],
-      joinedDate: new Date(user.profile?.joinedDate || Date.now()).toLocaleDateString(),
-    }
+      photo: user.photo || defaultAvatar,
+      avatar: user.photo || defaultAvatar,
+      bannerImage: safeProfile.bannerImage || defaultBanner,
+      bannerColor: safeProfile.bannerColor || '',
+      bio: safeProfile.bio || 'No bio provided.',
+      expertise: safeProfile.expertise || [],
+      department: safeProfile.department || 'General',
+      researchAreas: safeProfile.researchAreas || [],
+      achievements: safeProfile.achievements || [],
+      officeHours: safeProfile.officeHours || 'By Appointment',
+      socialLinks: safeProfile.socialLinks || {},
+      projectsSupervised: safeProfile.projectsSupervised || [],
+      joinedDate: new Date(safeProfile.joinedDate || user.createdAt || Date.now()).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      }),
+      role: user.type
+    };
 
     return (
       <div className="pt-10 min-h-screen bg-background">
         <Header />
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="pt-16 px-4 md:px-8 lg:px-12">
+        <main className="pt-4 px-4 md:px-4 lg:px-4">
           <div className="container mx-auto py-8 px-4">
-            <div
-              data-reportable="true"
-              data-reportable-type="user"
-              data-reportable-id={user._id}
-              data-reported-user-id={user._id}
-              data-reportable-title={user.fullName}
-              data-reportable-author={user.fullName}
-            >
+            <ProfileHeader user={user} isOwner={isOwner} />
+            <div className="mt-8">
               <MentorProfile mentor={mentorData} isOwner={isOwner} />
             </div>
           </div>
         </main>
       </div>
-    )
+    );
   }
 
+  // =========================================================
+  // 👨‍🎓 STUDENT VIEW
+  // =========================================================
   const studentData = {
-    name: user.fullName,
-    username: user.profile?.enrollmentNo || '',
+    id: user._id,
+    _id: user._id,
+    name: user.fullName || "Student",
+    username: safeProfile.enrollmentNo || '',
     email: user.email,
-    avatar: user.photo || '',
-    bannerImage: user.profile?.bannerImage || '',
-    bannerColor: user.profile?.bannerColor || '',
-    bio: user.profile?.bio || '',
-    course: user.profile?.course || '',
-    branch: user.profile?.branch || '',
-    year: user.profile?.year || 1,
-    skills: user.profile?.skills || [],
-    projects: (user.profile?.projects || []).map((p: any) => ({ id: p.id, title: p.title, image: p.image || '/default-project.png', description: p.description || '', tags: p.tags || [] })),
-    uploadedProjects: (user.uploadedProjects || []).map((p: any) => ({
-      _id: p._id,
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      tags: p.tags || [],
-      images: p.images || [],
-      githubUrl: p.githubUrl,
-      liveUrl: p.liveUrl,
-      createdAt: p.createdAt,
-      likeCount: p.likeCount || 0,
-      commentCount: p.commentCount || 0,
+    avatar: user.photo || defaultAvatar,
+    bannerImage: safeProfile.bannerImage || defaultBanner,
+    bannerColor: safeProfile.bannerColor || '',
+    bio: safeProfile.bio || 'No bio added yet.',
+    course: safeProfile.course || 'Course not specified',
+    branch: safeProfile.branch || 'Branch not specified',
+    year: safeProfile.year || 1,
+    skills: safeProfile.skills || [],
+    projects: (safeProfile.projects || []).map((project: any) => ({
+      id: project.id ? Number(project.id) : Math.floor(Math.random() * 10000),
+      title: project.title || 'Untitled Project',
+      image: project.image || '/default-project.png',
+      tags: [],
+      description: project.description || '',
+      ...(project.url && { url: project.url })
     })),
-    socialLinks: user.profile?.socialLinks || {},
-    joinedDate: new Date(user.profile?.joinedDate || Date.now()).toLocaleDateString(),
-  }
+    uploadedProjects: (user.uploadedProjects || []).map((project: any) => ({
+      _id: project._id,
+      id: project.id,
+      title: project.title || "Untitled",
+      description: project.description || "",
+      tags: project.tags || [],
+      images: project.images || [],
+      githubUrl: project.githubUrl,
+      liveUrl: project.liveUrl,
+      createdAt: project.createdAt,
+      likeCount: project.likeCount || 0,
+      commentCount: project.commentCount || 0,
+    })),
+    socialLinks: {
+      github: safeProfile.socialLinks?.github || '',
+      linkedin: safeProfile.socialLinks?.linkedin || '',
+      portfolio: safeProfile.socialLinks?.portfolio || ''
+    },
+    joinedDate: new Date(safeProfile.joinedDate || user.createdAt || Date.now()).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }),
+  };
 
   return (
     <div className="pt-10 min-h-screen bg-background">
@@ -139,18 +172,12 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="pt-16 px-4 md:px-8 lg:px-12">
         <div className="container mx-auto py-8 px-4">
-          <div
-            data-reportable="true"
-            data-reportable-type="user"
-            data-reportable-id={user._id}
-            data-reported-user-id={user._id}
-            data-reportable-title={user.fullName}
-            data-reportable-author={user.fullName}
-          >
+          <ProfileHeader user={user} isOwner={isOwner} />
+          <div className="mt-8">
             <StudentProfile student={studentData} isOwner={isOwner} />
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { findChatById, updateChat, deleteChat, addMessageToChat } from '@/models/Chat';
+import { updateChat, deleteChat, addMessageToChat, findChatById } from '@/models/Chat';
 import { softDeleteChat } from '@/models/DeletedChat';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -58,21 +58,27 @@ export async function PUT(
 
     const { chatId } = await params; // Await the params Promise
     const updateData = await request.json();
-    const chat = await updateChat(chatId, updateData);
     
-    if (!chat) {
+    const db = mongoose.connection.db;
+    if (!db) {
+      return NextResponse.json({ error: 'Database not connected' }, { status: 500 });
+    }
+    
+    const chat = await db.collection('chats').findOneAndUpdate({ id: chatId }, { $set: updateData }, { returnOriginal: false });
+    
+    if (!chat.value) {
       return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
     }
 
-    // Verify the user owns this chat OR is a participant
-    const isOwner = chat.userId === session.user.id;
-    const isParticipant = chat.participants?.some((p: any) => p.id === session.user.id);
+    // Verify user owns this chat OR is a participant
+    const isOwner = chat.value.userId === session.user.id;
+    const isParticipant = chat.value.participants?.some((p: any) => p.id === session.user.id);
     
     if (!isOwner && !isParticipant) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    return NextResponse.json({ chat });
+    return NextResponse.json({ chat: chat.value });
   } catch (error) {
     console.error('Error updating chat:', error);
     return NextResponse.json({ error: 'Failed to update chat' }, { status: 500 });

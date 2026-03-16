@@ -1,196 +1,98 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import Project, { softDeleteProject, restoreProject } from '@/models/Project';
-import { createActivityLog } from '@/models/AdminActivityLog';
+import Project from '@/models/Project';
+import User from '@/models/User'; // For population if needed
+import { getToken } from 'next-auth/jwt';
+import { NextRequest } from 'next/server';
+import Group from '@/models/Group';
 
-// Helper function to get admin info from request headers
-const getAdminInfo = (request: NextRequest) => {
-  const userId = request.headers.get('x-user-id');
-  const userRole = request.headers.get('x-user-role');
-  const userEmail = request.headers.get('x-user-email');
-  
-  if (!userId || !userRole || !userEmail) {
-    throw new Error('Admin authentication required');
-  }
-  
-  return { userId, userRole, userEmail };
-};
-
-// Helper function to check if user is super admin
-const isSuperAdmin = (userRole: string) => userRole === 'super_admin';
-
-// GET /api/admin/projects - Get all projects with filters
-export async function GET(request: NextRequest) {
-  try {
-    const adminInfo = getAdminInfo(request);
-    await connectDB();
-
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
-    const status = searchParams.get('status') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-
-    // Build query
-    const query: any = {};
-    
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { 'author.name': { $regex: search, $options: 'i' } }
-      ];
-    }
-    
-    if (status === 'deleted') {
-      query.isDeleted = true;
-    } else if (status === 'active') {
-      query.isDeleted = { $ne: true };
-    }
-
-    const skip = (page - 1) * limit;
-
-    const [projects, totalCount] = await Promise.all([
-      Project.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Project.countDocuments(query)
-    ]);
-
-    return NextResponse.json({
-      projects,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Projects API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch projects' },
-      { status: 500 }
-    );
-  }
+async function checkAdmin(req: NextRequest) {
+    const token = await getToken({ req: req as any });
+    if (!token) return false;
+    const user = token as any;
+    return user.type === 'admin' || user.type === 'super-admin' ||
+        user.role === 'admin' || user.role === 'super-admin';
 }
 
-// DELETE /api/admin/projects/[id] - Soft delete project
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const adminInfo = getAdminInfo(request);
-    await connectDB();
+export async function GET(req: NextRequest) {
+    try {
+        if (!await checkAdmin(req)) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-    const project = await Project.findById(params.id);
-    if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
-      );
+        await connectDB();
+        // Populate author if possible, assuming 'author' field refers to User
+        const projects = await Project.find({})
+            .sort({ createdAt: -1 })
+            .populate('author', 'name email image');
+
+        return NextResponse.json(projects);
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
     }
-
-    if (project.isDeleted) {
-      return NextResponse.json(
-        { error: 'Project already deleted' },
-        { status: 400 }
-      );
-    }
-
-    // Soft delete the project
-    const deletedProject = await softDeleteProject(params.id, adminInfo.userId);
-
-    // Log activity
-    await createActivityLog({
-      adminId: adminInfo.userId,
-      adminName: adminInfo.userEmail,
-      adminEmail: adminInfo.userEmail,
-      action: 'delete_project',
-      actionType: 'delete',
-      targetType: 'project',
-      targetId: params.id,
-      targetName: project.title,
-      description: `Soft deleted project: ${project.title}`,
-      ipAddress: request.ip || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown'
-    });
-
-    return NextResponse.json({
-      message: 'Project deleted successfully',
-      project: deletedProject
-    });
-  } catch (error) {
-    console.error('Delete project API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete project' },
-      { status: 500 }
-    );
-  }
 }
 
-// PUT /api/admin/projects/[id]/restore - Restore deleted project
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const adminInfo = getAdminInfo(request);
-    await connectDB();
+// PUT /api/admin/projects - Update project status (for bulk operations)
+export async function PUT(req: NextRequest) {
+    try {
+        if (!await checkAdmin(req)) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-    const project = await Project.findById(params.id);
-    if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
-      );
+        await connectDB();
+        const body = await req.json();
+        const { projectIds, action, reason } = body;
+
+        if (!projectIds || !Array.isArray(projectIds) || !action) {
+            return NextResponse.json({ 
+                error: 'Missing required fields: projectIds (array), action' 
+            }, { status: 400 });
+        }
+
+        if (!['approve', 'reject'].includes(action)) {
+            return NextResponse.json({ 
+                error: 'Invalid action. Must be approve or reject' 
+            }, { status: 400 });
+        }
+
+        const session = await getToken({ req: req as any });
+        const adminId = session?.sub;
+
+        const updateData: any = {};
+        if (action === 'approve') {
+            updateData.projectStatus = 'APPROVED';
+            updateData.approvedAt = new Date();
+            updateData.approvedBy = adminId;
+        } else if (action === 'reject') {
+            updateData.projectStatus = 'REJECTED';
+            updateData.rejectedAt = new Date();
+            updateData.rejectedBy = adminId;
+            updateData.rejectionReason = reason || 'Project rejected by admin';
+        }
+
+        const result = await Project.updateMany(
+            { 
+                _id: { $in: projectIds },
+                projectStatus: 'PENDING' // Only update pending projects
+            },
+            updateData
+        );
+
+        console.log(`✅ Bulk ${action} completed: ${result.modifiedCount} projects updated`);
+
+        return NextResponse.json({
+            success: true,
+            message: `Successfully ${action}d ${result.modifiedCount} projects`,
+            updatedCount: result.modifiedCount,
+            requestedCount: projectIds.length
+        });
+
+    } catch (error: any) {
+        console.error('Error in bulk project update:', error);
+        return NextResponse.json(
+            { error: 'Failed to update projects', details: error.message },
+            { status: 500 }
+        );
     }
-
-    if (!project.isDeleted) {
-      return NextResponse.json(
-        { error: 'Project is not deleted' },
-        { status: 400 }
-      );
-    }
-
-    // Restore the project (override the user check for admin)
-    const restoredProject = await Project.findByIdAndUpdate(
-      params.id,
-      {
-        isDeleted: false,
-        deletedAt: undefined,
-        deletedBy: undefined,
-        restoreAvailableUntil: undefined
-      },
-      { new: true }
-    );
-
-    // Log activity
-    await createActivityLog({
-      adminId: adminInfo.userId,
-      adminName: adminInfo.userEmail,
-      adminEmail: adminInfo.userEmail,
-      action: 'restore_project',
-      actionType: 'restore',
-      targetType: 'project',
-      targetId: params.id,
-      targetName: project.title,
-      description: `Restored deleted project: ${project.title}`,
-      ipAddress: request.ip || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown'
-    });
-
-    return NextResponse.json({
-      message: 'Project restored successfully',
-      project: restoredProject
-    });
-  } catch (error) {
-    console.error('Restore project API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to restore project' },
-      { status: 500 }
-    );
-  }
 }

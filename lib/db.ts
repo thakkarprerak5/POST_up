@@ -1,10 +1,10 @@
 // lib/db.ts
 import mongoose, { Connection } from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI as string;
+const MONGODB_URI = process.env.MONGODB_URI as string || 'mongodb://localhost:27017/post-up';
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+if (!process.env.MONGODB_URI) {
+  console.log('⚠️ MONGODB_URI not defined, using default: mongodb://localhost:27017/post-up');
 }
 
 // Extend NodeJS global type to include mongoose cache
@@ -32,9 +32,16 @@ if (!cached) {
 }
 
 export async function connectDB(): Promise<typeof import('mongoose')> {
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     console.log('📊 Using cached MongoDB connection');
     return cached.conn;
+  }
+  
+  // Force reconnection if cached connection is bad
+  if (cached.conn && mongoose.connection.readyState !== 1) {
+    console.log('🔄 Cached connection is bad, forcing reconnection...');
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (!cached.promise) {

@@ -64,7 +64,7 @@ export default function ActivityLogsPage() {
     pages: 0
   });
 
-  const isSuperAdmin = session?.user?.role === 'super_admin';
+  const isSuperAdmin = session?.user?.role === 'super-admin';
 
   useEffect(() => {
     if (isSuperAdmin) {

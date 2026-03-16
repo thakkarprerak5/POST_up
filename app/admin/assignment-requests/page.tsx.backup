@@ -1,0 +1,869 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+    Search,
+    Filter,
+    Users,
+    User,
+    Clock,
+    CheckCircle,
+    XCircle,
+    RefreshCw,
+    Inbox,
+    ChevronDown,
+    Trash2,
+} from "lucide-react";
+import { AssignmentRequestCard } from "@/components/admin/AssignmentRequestCard";
+import { RemovedStudentCard } from "@/components/admin/RemovedStudentCard";
+import { AssignMentorModal } from "@/components/admin/AssignMentorModal";
+import { CancelRequestModal } from "@/components/admin/CancelRequestModal";
+import { toast } from "sonner";
+
+interface AssignmentRequest {
+    _id: string;
+    projectTitle: string;
+    projectDescription: string;
+    proposalFile?: string;
+    requestedToType: 'student' | 'group';
+    status: 'pending' | 'assigned' | 'cancelled' | 'removed';
+    createdAt: string;
+    assignedAt?: string;
+    requestedBy: any;
+    studentId?: any;
+    groupId?: any;
+    groupSnapshot?: any;
+    assignedMentorId?: any;
+}
+
+interface Stats {
+    total: number;
+    pending: number;
+    assigned: number;
+    cancelled: number;
+    individual: number;
+    group: number;
+    removed: number; // NEW: Track removed requests
+}
+
+interface RemovedStudentAssignment {
+    _id: string;
+    assignedToType: 'student' | 'group';
+    studentId?: {
+        _id: string;
+        fullName: string;
+        email: string;
+        photo?: string;
+    };
+    groupId?: {
+        _id: string;
+        name: string;
+        description?: string;
+    };
+    projectId?: {
+        _id: string;
+        title: string;
+        description?: string;
+    };
+    mentorId: {
+        _id: string;
+        fullName: string;
+        email: string;
+        photo?: string;
+    };
+    removalReason: 'project_completed' | 'report_issue' | 'other';
+    removalDetails?: string;
+    removedBy: {
+        _id: string;
+        fullName: string;
+        email: string;
+    };
+    removedAt: string;
+    reportId?: {
+        _id: string;
+        title: string;
+        status: string;
+    };
+    completedBy?: {
+        _id: string;
+        fullName: string;
+    };
+    completedAt?: string;
+    status: string;
+}
+
+export default function AssignmentRequestsPage() {
+    const [requests, setRequests] = useState<AssignmentRequest[]>([]);
+    const [filteredRequests, setFilteredRequests] = useState<AssignmentRequest[] | RemovedStudentAssignment[]>([]);
+    const [removedStudents, setRemovedStudents] = useState<RemovedStudentAssignment[]>([]); // NEW: Track removed students
+    const [stats, setStats] = useState<Stats>({
+        total: 0,
+        pending: 0,
+        assigned: 0,
+        cancelled: 0,
+        individual: 0,
+        group: 0,
+        removed: 0, // NEW: Initialize removed count
+    });
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [typeFilter, setTypeFilter] = useState<string>("all");
+    const [filterOpen, setFilterOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const tabsListRef = useRef<HTMLDivElement>(null);
+    const [activeTabRect, setActiveTabRect] = useState({ left: 0, width: 0 });
+
+    // Modal state
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [cancelModalOpen, setCancelModalOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState<AssignmentRequest | null>(null);
+    const [cancelling, setCancelling] = useState(false);
+
+    useEffect(() => {
+        fetchRequests();
+    }, []);
+
+    useEffect(() => {
+        applyFilters();
+    }, [requests, removedStudents, searchTerm, statusFilter, typeFilter]); // Add removedStudents dependency
+
+    // Update active tab indicator position
+    useEffect(() => {
+        const updateActiveTabPosition = () => {
+            if (tabsListRef.current) {
+                const activeTrigger = tabsListRef.current.querySelector(
+                    `[data-state="active"]`
+                ) as HTMLElement;
+                if (activeTrigger && tabsListRef.current) {
+                    const listRect = tabsListRef.current.getBoundingClientRect();
+                    const triggerRect = activeTrigger.getBoundingClientRect();
+                    const left = triggerRect.left - listRect.left;
+                    const width = triggerRect.width;
+                    
+                    setActiveTabRect({ left, width });
+                }
+            }
+        };
+
+        // Initial update
+        updateActiveTabPosition();
+        
+        // Add delay for DOM updates
+        const timeoutId = setTimeout(updateActiveTabPosition, 100);
+        
+        // Handle window resize
+        const handleResize = () => {
+            updateActiveTabPosition();
+        };
+        
+        window.addEventListener('resize', handleResize);
+        
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [statusFilter]);
+
+    // Also update on initial mount
+    useEffect(() => {
+        const updateInitialPosition = () => {
+            if (tabsListRef.current) {
+                const activeTrigger = tabsListRef.current.querySelector(
+                    `[data-state="active"]`
+                ) as HTMLElement;
+                if (activeTrigger && tabsListRef.current) {
+                    const listRect = tabsListRef.current.getBoundingClientRect();
+                    const triggerRect = activeTrigger.getBoundingClientRect();
+                    const left = triggerRect.left - listRect.left;
+                    const width = triggerRect.width;
+                    
+                    setActiveTabRect({ left, width });
+                }
+            }
+        };
+        
+        // Multiple attempts to ensure proper initialization
+        updateInitialPosition();
+        const timeout1 = setTimeout(updateInitialPosition, 50);
+        const timeout2 = setTimeout(updateInitialPosition, 200);
+        
+        return () => {
+            clearTimeout(timeout1);
+            clearTimeout(timeout2);
+        };
+    }, []);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setFilterOpen(false);
+            }
+        };
+
+        if (filterOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [filterOpen]);
+
+    const fetchRequests = async () => {
+        setLoading(true);
+        try {
+            // Fetch regular assignment requests
+            const response = await fetch("/api/admin/assignment-requests");
+            if (response.ok) {
+                const data = await response.json();
+                setRequests(data.requests || []);
+                setStats(prevStats => ({
+                    ...data.stats,
+                    removed: prevStats.removed // Keep existing removed count
+                }));
+            } else {
+                // Handle non-JSON responses properly
+                let errorMessage = "Failed to load assignment requests";
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (jsonError) {
+                    errorMessage = response.statusText || errorMessage;
+                }
+                toast.error(errorMessage);
+            }
+
+            // Fetch removed students separately
+            try {
+                const removedResponse = await fetch("/api/admin/removed-students");
+                if (removedResponse.ok) {
+                    const removedData = await removedResponse.json();
+                    setRemovedStudents(removedData.assignments || []);
+                    setStats(prevStats => ({
+                        ...prevStats,
+                        removed: removedData.stats?.total || 0
+                    }));
+                }
+            } catch (removedError) {
+                console.error("Error fetching removed students:", removedError);
+                // Don't show toast error for this, just log it
+            }
+
+        } catch (error) {
+            console.error("Error fetching requests:", error);
+            toast.error("Failed to load assignment requests");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const applyFilters = () => {
+        console.log('Applying filters - current typeFilter:', typeFilter);
+        
+        // If we're on the removed tab, filter removed students
+        if (statusFilter === 'removed') {
+            let filtered = [...removedStudents];
+            
+            // Type filter
+            if (typeFilter !== "all") {
+                filtered = filtered.filter((req) => req.assignedToType === typeFilter);
+            }
+
+            // Search filter
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                filtered = filtered.filter(
+                    (req) => {
+                        const targetName = req.assignedToType === 'student' 
+                            ? req.studentId?.fullName?.toLowerCase()
+                            : req.groupId?.name?.toLowerCase();
+                        const projectName = req.projectId?.title?.toLowerCase();
+                        const mentorName = req.mentorId?.fullName?.toLowerCase();
+                        
+                        return (
+                            targetName?.includes(searchLower) ||
+                            projectName?.includes(searchLower) ||
+                            mentorName?.includes(searchLower)
+                        );
+                    }
+                );
+            }
+
+            console.log('Final filtered removed count:', filtered.length);
+            setFilteredRequests(filtered); // Remove type assertion as we now have proper union type
+            return;
+        }
+
+        // Original logic for other tabs
+        let filtered = [...requests];
+        console.log('Total requests before filtering:', filtered.length);
+
+        // Status filter - handle all tabs including removed
+        if (statusFilter !== "all") {
+            filtered = filtered.filter((req) => req.status === statusFilter);
+        } else {
+            // For "all" tab, exclude removed requests
+            filtered = filtered.filter((req) => req.status !== 'removed');
+        }
+        console.log('After status filter:', filtered.length);
+
+        // Type filter
+        if (typeFilter !== "all") {
+            filtered = filtered.filter((req) => req.requestedToType === typeFilter);
+            console.log('After type filter (', typeFilter, '):', filtered.length);
+        }
+
+        // Search filter
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            filtered = filtered.filter(
+                (req) =>
+                    req.projectTitle.toLowerCase().includes(searchLower) ||
+                    req.projectDescription.toLowerCase().includes(searchLower) ||
+                    req.requestedBy?.fullName?.toLowerCase().includes(searchLower) ||
+                    req.requestedBy?.email?.toLowerCase().includes(searchLower)
+            );
+            console.log('After search filter:', filtered.length);
+        }
+
+        console.log('Final filtered count:', filtered.length);
+        setFilteredRequests(filtered);
+    };
+
+    const handleAssignMentor = (requestId: string) => {
+        const request = requests.find((r) => r._id === requestId);
+        if (request) {
+            setSelectedRequest(request);
+            setAssignModalOpen(true);
+        }
+    };
+
+    const handleCancelRequest = (requestId: string) => {
+        const request = requests.find((r) => r._id === requestId);
+        if (request) {
+            setSelectedRequest(request);
+            setCancelModalOpen(true);
+        }
+    };
+
+    const handleConfirmCancel = async () => {
+        if (!selectedRequest) return;
+
+        setCancelling(true);
+        try {
+            const response = await fetch(`/api/admin/assignment-requests/${selectedRequest._id}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    status: "cancelled",
+                }),
+            });
+
+            if (response.ok) {
+                // Optimistic UI update
+                setRequests((prev) =>
+                    prev.map((req) =>
+                        req._id === selectedRequest._id
+                            ? { ...req, status: "cancelled" as const }
+                            : req
+                    )
+                );
+
+                // Update stats
+                setStats((prev) => ({
+                    ...prev,
+                    pending: Math.max(0, prev.pending - 1),
+                    cancelled: prev.cancelled + 1,
+                }));
+
+                toast.success("Assignment request cancelled successfully");
+                setCancelModalOpen(false);
+                setSelectedRequest(null);
+            } else {
+                const error = await response.json();
+                toast.error(error.error || "Failed to cancel request");
+            }
+        } catch (error) {
+            console.error("Error cancelling request:", error);
+            toast.error("Failed to cancel request");
+        } finally {
+            setCancelling(false);
+        }
+    };
+
+    const handleViewDetails = (requestId: string) => {
+        // For now, just scroll to the request or show a toast
+        toast.info("Request details view coming soon");
+    };
+
+    // NEW: Handle remove canceled request
+    const handleRemoveRequest = async (requestId: string) => {
+        const request = requests.find((r) => r._id === requestId);
+        if (!request) {
+            console.log('❌ Request not found for ID:', requestId);
+            return;
+        }
+
+        console.log('🔍 handleRemoveRequest called:', {
+            requestId,
+            requestTitle: request.projectTitle,
+            currentStatus: request.status
+        });
+
+        // Confirm before removing
+        const confirmed = window.confirm(
+            `Are you sure you want to remove this canceled request?\n\nProject: ${request.projectTitle}\nThis action cannot be undone.`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            console.log('📤 Making DELETE request to:', `/api/admin/assignment-requests/${requestId}`);
+            
+            const response = await fetch(`/api/admin/assignment-requests/${requestId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    removalReason: 'Removed by admin from canceled requests'
+                })
+            });
+
+            console.log('📊 DELETE response status:', response.status);
+            console.log('📊 DELETE response headers:', response.headers);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ DELETE response data:', data);
+                toast.success('Canceled request removed successfully');
+                
+                // Refresh the requests list
+                fetchRequests();
+            } else {
+                // Handle non-JSON responses properly
+                let errorData;
+                try {
+                    errorData = await response.json();
+                    console.log('❌ DELETE error response:', errorData);
+                } catch (jsonError) {
+                    console.log('❌ DELETE response not JSON, using text:', response.statusText);
+                    errorData = { error: response.statusText || 'Failed to remove request' };
+                }
+                toast.error(errorData.error || 'Failed to remove request');
+            }
+        } catch (error) {
+            console.error('❌ Error removing request:', error);
+            toast.error('Failed to remove request');
+        }
+    };
+
+    const handleAssignmentComplete = () => {
+        fetchRequests(); // Refresh the list
+    };
+
+    return (
+        <div className="bg-gray-50 min-h-screen">
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                {/* Header */}
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8 mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Assignment Requests</h1>
+                    <p className="text-lg text-gray-500 font-medium mt-2">Review and assign mentors to student requests</p>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 hover:shadow-md transition-all duration-300 hover:-translate-y-[1px]">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-amber-100 rounded-xl">
+                                <Clock className="h-6 w-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
+                                <p className="text-sm font-medium text-amber-600">Pending</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 hover:shadow-md transition-all duration-300 hover:-translate-y-[1px]">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-green-100 rounded-xl">
+                                <CheckCircle className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                                <p className="text-3xl font-bold text-gray-900">{stats.assigned}</p>
+                                <p className="text-sm font-medium text-green-600">Assigned</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 hover:shadow-md transition-all duration-300 hover:-translate-y-[1px]">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-red-100 rounded-xl">
+                                <XCircle className="h-6 w-6 text-red-600" />
+                            </div>
+                            <div>
+                                <p className="text-3xl font-bold text-gray-900">{stats.cancelled}</p>
+                                <p className="text-sm font-medium text-red-600">Cancelled</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 hover:shadow-md transition-all duration-300 hover:-translate-y-[1px]">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-indigo-100 rounded-xl">
+                                <Users className="h-6 w-6 text-indigo-600" />
+                            </div>
+                            <div>
+                                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                                <p className="text-sm font-medium text-indigo-600">Total Requests</p>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+            {/* Search & Filters */}
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 mb-8 hover:shadow-md transition-all duration-300">
+                <div className="flex flex-col md:flex-row gap-4">
+                    {/* Search */}
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <Input
+                        placeholder="Search by project title, student name, or email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="
+                            pl-10
+                            h-10
+                            bg-white
+                            border border-gray-300
+                            text-gray-900
+                            placeholder:text-gray-500
+                            rounded-lg
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-blue-500
+                            focus:border-blue-500
+                            transition-colors
+                        "
+                        />
+                    </div>
+
+                        {/* Type Filter - Custom Dropdown */}
+                        <div className="relative" ref={dropdownRef}>
+                            <button
+                                onClick={() => setFilterOpen(prev => !prev)}
+                                className="
+                                appearance-none
+                                bg-white border-2 border-blue-500
+                                rounded-full px-6 py-3 pr-12
+                                h-14 min-w-[220px]
+                                text-base font-semibold text-slate-900
+                                shadow-sm hover:shadow-md
+                                cursor-pointer
+                                hover:border-blue-600
+                                focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-600
+                                transition-all duration-300
+                                flex items-center justify-between
+                                "
+                            >
+                                <span>
+                                    {typeFilter === 'all' ? 'All Types' : 
+                                     typeFilter === 'student' ? 'Individual' : 'Group'}
+                                </span>
+                            </button>
+                            <ChevronDown
+                                className={`
+                                absolute right-4 top-1/2 -translate-y-1/2
+                                h-5 w-5 text-blue-600
+                                pointer-events-none
+                                transition-transform duration-300
+                                ${filterOpen ? 'rotate-180' : ''}
+                                `}
+                            />
+                            
+                            {/* Custom Dropdown Menu */}
+                            {filterOpen && (
+                                <div className="
+                                absolute top-full left-0 right-0 mt-3
+                                bg-white border border-blue-100/50 rounded-3xl
+                                shadow-2xl shadow-blue-500/25 backdrop-blur-xl
+                                overflow-hidden z-50
+                                animate-in slide-in-from-top-1 duration-300 ease-out
+                                ">
+                                    <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 p-1">
+                                        <div className="bg-white rounded-2xl">
+                                            <button
+                                                onClick={() => {
+                                                    setTypeFilter('all');
+                                                    setFilterOpen(false);
+                                                }}
+                                                className={`
+                                                w-full px-6 py-4 text-left font-semibold transition-all duration-300
+                                                border-b border-blue-50 last:border-b-0
+                                                ${typeFilter === 'all' 
+                                                    ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white shadow-lg' 
+                                                    : 'text-slate-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700'}
+                                                `}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-3 h-3 rounded-full shadow-md ${typeFilter === 'all' ? 'bg-white' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`}></div>
+                                                        <span className="text-base font-medium">All Types</span>
+                                                    </div>
+                                                    {typeFilter === 'all' && (
+                                                        <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                                                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setTypeFilter('student');
+                                                    setFilterOpen(false);
+                                                }}
+                                                className={`
+                                                w-full px-6 py-4 text-left font-semibold transition-all duration-300
+                                                border-b border-blue-50 last:border-b-0
+                                                ${typeFilter === 'student' 
+                                                    ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white shadow-lg' 
+                                                    : 'text-slate-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700'}
+                                                `}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-3 h-3 rounded-full shadow-md ${typeFilter === 'student' ? 'bg-white' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`}></div>
+                                                        <span className="text-base font-medium">Individual</span>
+                                                    </div>
+                                                    {typeFilter === 'student' && (
+                                                        <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                                                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setTypeFilter('group');
+                                                    setFilterOpen(false);
+                                                }}
+                                                className={`
+                                                w-full px-6 py-4 text-left font-semibold transition-all duration-300
+                                                border-b border-blue-50 last:border-b-0
+                                                ${typeFilter === 'group' 
+                                                    ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white shadow-lg' 
+                                                    : 'text-slate-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700'}
+                                                `}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-3 h-3 rounded-full shadow-md ${typeFilter === 'group' ? 'bg-white' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`}></div>
+                                                        <span className="text-base font-medium">Group</span>
+                                                    </div>
+                                                    {typeFilter === 'group' && (
+                                                        <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                                                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+
+                        {/* Refresh Button */}
+                        <Button
+                            variant="ghost"
+                            size="lg"
+                            onClick={fetchRequests}
+                            disabled={loading}
+                            className="h-14 w-14 p-0 rounded-full hover:bg-blue-50 transition-all duration-300 shadow-sm hover:shadow-md border-2 border-blue-500 hover:border-blue-600"
+                        >
+                            <RefreshCw className={`h-5 w-5 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Tabs for Status - Modern Glassmorphism Style */}
+            <div className="mb-12">
+                <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+                    <TabsList className="bg-white/60 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-blue-100/30 inline-flex gap-3 relative" ref={tabsListRef}>
+                        {/* Sliding Indicator */}
+                        <div
+                            className={`absolute inset-1 rounded-xl shadow-lg transition-all duration-500 ease-in-out ${
+                                statusFilter === 'all' 
+                                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/25'
+                                    : statusFilter === 'pending'
+                                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/25'
+                                    : statusFilter === 'assigned'
+                                    ? 'bg-gradient-to-r from-green-500 to-green-600 shadow-green-500/25'
+                                    : statusFilter === 'cancelled'
+                                    ? 'bg-gradient-to-r from-red-500 to-red-600 shadow-red-500/25'
+                                    : statusFilter === 'removed'
+                                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 shadow-purple-500/25'
+                                    : 'bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/25'
+                            }`}
+                            style={{
+                                left: `${activeTabRect.left}px`,
+                                width: `${activeTabRect.width}px`,
+                            }}
+                        />
+                        <TabsTrigger
+                            value="all"
+                            className="!bg-transparent border-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-none rounded-xl px-8 py-3 text-sm font-bold transition-all duration-300 data-[state=active]:!bg-transparent data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:!bg-transparent relative z-10"
+                        >
+                            All <span className="ml-3 text-xs bg-slate-100/80 text-slate-600 px-3 py-1 rounded-full font-bold">({stats.total})</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="pending"
+                            className="!bg-transparent border-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-none rounded-xl px-8 py-3 text-sm font-bold transition-all duration-300 data-[state=active]:!bg-transparent data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:!bg-transparent relative z-10"
+                        >
+                            Pending <span className="ml-3 text-xs bg-amber-100/80 text-amber-700 px-3 py-1 rounded-full font-bold">({stats.pending})</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="assigned"
+                            className="!bg-transparent border-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-none rounded-xl px-8 py-3 text-sm font-bold transition-all duration-300 data-[state=active]:!bg-transparent data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:!bg-transparent relative z-10"
+                        >
+                            Assigned <span className="ml-3 text-xs bg-green-100/80 text-green-700 px-3 py-1 rounded-full font-bold">({stats.assigned})</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="cancelled"
+                            className="!bg-transparent border-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-none rounded-xl px-8 py-3 text-sm font-bold transition-all duration-300 data-[state=active]:!bg-transparent data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:!bg-transparent relative z-10"
+                        >
+                            Cancelled <span className="ml-3 text-xs bg-red-100/80 text-red-700 px-3 py-1 rounded-full font-bold">({stats.cancelled})</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="removed"
+                            className="!bg-transparent border-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-none rounded-xl px-8 py-3 text-sm font-bold transition-all duration-300 data-[state=active]:!bg-transparent data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:text-slate-900 data-[state=inactive]:hover:!bg-transparent relative z-10"
+                        >
+                            Removed Students <span className="ml-3 text-xs bg-purple-100/80 text-purple-700 px-3 py-1 rounded-full font-bold">({stats.removed})</span>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value={statusFilter} className="mt-12">
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-32">
+                                <div className="relative">
+                                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 border-t-blue-500"></div>
+                                    <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-transparent border-t-blue-400 animate-pulse"></div>
+                                </div>
+                                <p className="text-slate-600 font-bold text-xl mt-8">Loading assignment requests...</p>
+                                <p className="text-slate-500 text-base mt-3">Fetching the latest data for you</p>
+                            </div>
+                        ) : filteredRequests.length === 0 ? (
+                            <div className="bg-white rounded-2xl shadow-2xl border border-blue-100/50">
+                                <div className="p-32 text-center">
+                                    <div className="flex justify-center mb-12">
+                                        <div className="relative">
+                                            <div className="p-8 bg-gradient-to-br from-slate-50 to-slate-100 rounded-3xl border border-slate-200/50">
+                                                <Inbox className="h-20 w-20 text-slate-400" />
+                                            </div>
+                                            <div className="absolute -top-3 -right-3 w-6 h-6 bg-slate-300 rounded-full animate-pulse"></div>
+                                            <div className="absolute -bottom-2 -left-2 w-5 h-5 bg-slate-200 rounded-full animate-pulse delay-75"></div>
+                                        </div>
+                                    </div>
+                                    <h3 className="text-3xl font-bold text-slate-900 mb-6">
+                                        {statusFilter === 'all' && 'No assignment requests found'}
+                                        {statusFilter === 'pending' && 'No pending assignment requests'}
+                                        {statusFilter === 'assigned' && 'No assigned requests yet'}
+                                        {statusFilter === 'cancelled' && 'No cancelled requests'}
+                                        {statusFilter === 'removed' && 'No removed students found'}
+                                    </h3>
+                                    <p className="text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed font-bold">
+                                        {searchTerm || typeFilter !== 'all'
+                                            ? 'Try adjusting your filters or search term to find what you\'re looking for'
+                                            : statusFilter === 'pending'
+                                                ? 'New requests will appear here when students submit them'
+                                                : 'Requests will appear here as they are processed'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                {statusFilter === 'removed' ? (
+                                    // Show RemovedStudentCard for removed tab
+                                    filteredRequests.map((assignment) => (
+                                        <RemovedStudentCard
+                                            key={assignment._id}
+                                            assignment={assignment as RemovedStudentAssignment}
+                                            onReassign={(assignmentId) => {
+                                                // TODO: Implement reassign functionality
+                                                console.log('Reassign:', assignmentId);
+                                            }}
+                                            onViewReport={(reportId) => {
+                                                // TODO: Implement view report functionality
+                                                console.log('View report:', reportId);
+                                            }}
+                                            onViewHistory={(assignmentId) => {
+                                                // TODO: Implement view history functionality
+                                                console.log('View history:', assignmentId);
+                                            }}
+                                        />
+                                    ))
+                                ) : (
+                                    // Show AssignmentRequestCard for other tabs
+                                    filteredRequests.map((request) => (
+                                        <AssignmentRequestCard
+                                            key={request._id}
+                                            request={request as AssignmentRequest}
+                                            onAssignMentor={handleAssignMentor}
+                                            onViewDetails={handleViewDetails}
+                                            onCancelRequest={handleCancelRequest}
+                                            onRemoveRequest={handleRemoveRequest}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            {/* Assign Mentor Modal */}
+            {selectedRequest && (
+                <AssignMentorModal
+                    isOpen={assignModalOpen}
+                    onClose={() => {
+                        setAssignModalOpen(false);
+                        setSelectedRequest(null);
+                    }}
+                    requestId={selectedRequest._id}
+                    projectTitle={selectedRequest.projectTitle}
+                    requestType={selectedRequest.requestedToType}
+                    onAssignmentComplete={handleAssignmentComplete}
+                />
+            )}
+
+            {/* Cancel Request Modal */}
+            {selectedRequest && (
+                <CancelRequestModal
+                    isOpen={cancelModalOpen}
+                    onClose={() => {
+                        setCancelModalOpen(false);
+                        setSelectedRequest(null);
+                    }}
+                    onConfirm={handleConfirmCancel}
+                    projectTitle={selectedRequest.projectTitle}
+                    isLoading={cancelling}
+                />
+            )}
+            </div>
+        </div>
+    );
+}
+
+export default AssignmentRequestsPage;

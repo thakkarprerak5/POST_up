@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Admin Repair Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Emergency Admin Repair Tool</h1>
+        <p>Use this tool to fix broken admin assignment requests and restore admin functionality.</p>
+        
+        <div class="info result">
+            <strong>Issue Found:</strong> 3 broken Group Mentor Admin Assignment Requests
+            <br><strong>Error:</strong> "CRITICAL: Group request missing groupId - Data integrity violation"
+            <br><strong>Requests:</strong> 
+            <br>• 697706a9ab34cf7bdce74851 (Project: 'scac')
+            <br>• 6973352fd0bd6747551a1c8d (Project: 'fewe') 
+            <br>• 6972037c6967adfa0f617b5b (Project: 'fewe')
+        </div>
+
+        <h2>🔧 Repair Actions</h2>
+        <button class="button" onclick="testAuth()">🔍 Test Authentication First</button>
+        <button class="button" onclick="fixDuplicate()">🔧 Fix Duplicate Group Issue</button>
+        <button class="button" onclick="directRepair()">🚀 Direct Emergency Repair (No Auth)</button>
+        <button class="button" onclick="checkStatus()">🔍 Check Current Status</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testAuth() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info result">🔍 Testing authentication...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/debug-auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success result">
+                            <h3>✅ Authentication Test Passed</h3>
+                            <p>Admin authentication is working properly.</p>
+                            <p>You can proceed with the repair actions.</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error result">
+                            <h3>❌ Authentication Test Failed</h3>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error result">
+                        <h3>❌ Authentication Test Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function fixDuplicate() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info result">🔧 Fixing duplicate group name issue...</div>';
+            
+            try {
+                const response = await fetch('/api/fix-duplicate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success result">
+                            <h3>✅ DUPLICATE ISSUE FIXED!</h3>
+                            <p><strong>Request ID:</strong> ${data.requestId}</p>
+                            <p><strong>Project:</strong> ${data.projectTitle}</p>
+                            <p><strong>Group Name:</strong> ${data.groupName}</p>
+                            <p><strong>Group ID:</strong> ${data.groupId}</p>
+                            <p><strong>Members:</strong> ${data.memberCount}</p>
+                            <p><strong>Next Steps:</strong> Click "Check Current Status" to verify all requests are fixed</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error result">
+                            <h3>❌ FAILED TO FIX DUPLICATE</h3>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error result">
+                        <h3>❌ DUPLICATE FIX ERROR</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function directRepair() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info result">🚀 Running emergency repair (no auth required)...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/emergency-repair', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success result">
+                            <h3>✅ EMERGENCY REPAIR COMPLETED!</h3>
+                            <p><strong>Fixed Requests:</strong> ${data.fixedRequests.length}</p>
+                            <p><strong>Failed Requests:</strong> ${data.failedRequests.length}</p>
+                            <p><strong>Next Steps:</strong> Check current status to verify all requests are fixed</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error result">
+                            <h3>❌ EMERGENCY REPAIR FAILED</h3>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error result">
+                        <h3>❌ EMERGENCY REPAIR ERROR</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function checkStatus() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info result">🔍 Checking current status...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/assignment-requests');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const pendingRequests = data.requests.filter(r => r.status === 'pending');
+                    const brokenRequests = pendingRequests.filter(r => !r.groupId && r.requestedToType === 'group');
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success result">
+                            <h3>📊 Current Status Check</h3>
+                            <p><strong>Total Requests:</strong> ${data.requests.length}</p>
+                            <p><strong>Pending Requests:</strong> ${pendingRequests.length}</p>
+                            <p><strong>Broken Group Requests:</strong> ${brokenRequests.length}</p>
+                            ${brokenRequests.length > 0 ? 
+                                `<p><strong>Broken Request IDs:</strong></p>
+                                <ul>
+                                    ${brokenRequests.map(r => `<li>${r._id} - ${r.projectTitle}</li>`).join('')}
+                                </ul>
+                                <p><strong>Action:</strong> Run "Fix Duplicate Group Issue" to repair these requests</p>`
+                                : 
+                                '<p><strong>✅ All requests are properly configured!</strong></p>'
+                            }
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error result">
+                            <h3>❌ STATUS CHECK FAILED</h3>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error result">
+                        <h3>❌ STATUS CHECK ERROR</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
