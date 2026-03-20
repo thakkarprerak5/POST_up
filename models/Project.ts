@@ -74,6 +74,7 @@ export interface IProject extends Document {
   views: number;
   invitations: number; // Count of mentor invitations sent
   trendingScore: number; // Calculated: (invitations * 5) + (likes * 2) + (views * 0.5)
+  authorId?: string; // String copy of author ObjectId for simple string-based queries
 }
 
 const ProjectSchema = new Schema<IProject>({
@@ -156,7 +157,9 @@ const ProjectSchema = new Schema<IProject>({
   // Trending fields
   views: { type: Number, default: 0, index: true },
   invitations: { type: Number, default: 0 },
-  trendingScore: { type: Number, default: 0, index: true }
+  trendingScore: { type: Number, default: 0, index: true },
+  // String copy of the author ObjectId for simple string-based lookups
+  authorId: { type: String, index: true },
 }, { timestamps: true });
 
 const Project = (global as any).Project || mongoose.model<IProject>('Project', ProjectSchema);

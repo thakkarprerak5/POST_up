@@ -111,9 +111,10 @@ export async function GET(request: NextRequest) {
     user = await ensureProfileExists(user);
 
     // Fetch user's uploaded projects
+    // author is stored as an ObjectId reference — query by ObjectId directly
     const userProjects = await listProjects(
-      { 'author.id': user._id.toString() },
-      { sort: { createdAt: -1 } }
+      { author: user._id, isDeleted: { $ne: true } },
+      { sort: { createdAt: -1 }, limit: 100 }
     );
 
     // Convert Mongoose doc to plain object safely

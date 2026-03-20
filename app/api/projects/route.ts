@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createProject, listProjects } from '@/models/Project';
+import Project, { createProject, listProjects } from '@/models/Project';
 import { connectDB } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -502,10 +502,11 @@ export async function POST(request: Request) {
     let categorySlug = null;
 
     // Check existing tags for category indicators
+    const tagToCategory = TAG_TO_CATEGORY as Record<string, string>;
     for (const tag of tagsArray) {
       const normalizedTag = tag.toLowerCase();
-      if (TAG_TO_CATEGORY[normalizedTag]) {
-        categorySlug = TAG_TO_CATEGORY[normalizedTag];
+      if (tagToCategory[normalizedTag]) {
+        categorySlug = tagToCategory[normalizedTag];
         break;
       }
     }
@@ -604,7 +605,8 @@ export async function POST(request: Request) {
       projectStatus: 'PENDING',
       proposalSource: 'direct_registration',
       mentorInvitation: undefined,
-      author: user._id, // Proper ObjectId reference to User
+      author: user._id,           // ObjectId reference for Mongoose populate()
+      authorId: user._id.toString(), // String copy for simple string‑based queries & serialisation
       likes: [],
       comments: [],
       shareCount: 0,
@@ -635,11 +637,11 @@ export async function POST(request: Request) {
           name: groupLeadUser.fullName,
           email: groupLeadUser.email
         } : null,
-        groupMembers: []
+        groupMembers: [] as Array<{ email: string; name: string; id: string | null; isValidated: boolean; status: string }>
       };
 
       try {
-        let studentIds = [];
+        let studentIds: string[] = [];
 
         // Process additional members if provided
         if (partnerEmails.length > 0) {
@@ -711,7 +713,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const project = await createProject(projectData);
+    const project = await createProject(projectData as any);
 
     // If student selected a mentor, create an invitation with idempotent logic
     if (mentorId && assignmentMethod === 'invitation') {
@@ -743,9 +745,9 @@ export async function POST(request: Request) {
           invitationData.groupSnapshot = {
             groupName: enhancedGroupData.groupName,
             lead: {
-              id: enhancedGroupData.groupLead.id || user._id.toString(),
-              name: enhancedGroupData.groupLead.name || user.fullName,
-              email: enhancedGroupData.groupLead.email || user.email
+              id: enhancedGroupData.groupLead?.id || user._id.toString(),
+              name: enhancedGroupData.groupLead?.name || user.fullName,
+              email: enhancedGroupData.groupLead?.email || user.email
             },
             members: enhancedGroupData.groupMembers.map(member => ({
               id: member.id,

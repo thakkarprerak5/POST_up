@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/auth'; // Adjust this path if your auth options are elsewhere
-import User from '@/models/User'; // Adjust this path to your actual User model
-import { connectDB } from '@/lib/db'; // Adjust this path to your DB connection file
+import { authOptions } from '@/auth';
+import User from '@/models/User';
+import { connectDB } from '@/lib/db';
 
+/**
+ * GET /api/users
+ * Returns a list of all registered users excluding the currently logged-in user.
+ * Available to any authenticated user (students, mentors, admins) for Chat discovery.
+ */
 export async function GET(request: Request) {
   try {
     // 1. Authentication Check
@@ -14,42 +19,44 @@ export async function GET(request: Request) {
 
     await connectDB();
 
-    // 2. Authorization Check (Admin Only)
-    const currentUser = await User.findOne({ email: session.user.email });
-    if (!currentUser || (currentUser.type !== 'admin' && currentUser.type !== 'super-admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // 2. Find the current user's document to get their ObjectId
+    const currentUser = await User.findOne({ email: session.user.email }).select('_id').lean();
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // 3. Pagination Setup
+    // 3. Pagination
     const url = new URL(request.url);
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 100);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '100'), 200);
     const page = Math.max(parseInt(url.searchParams.get('page') || '1'), 1);
+    const search = url.searchParams.get('q') || '';
 
-    // 4. Secure Database Query (Exclude emails and passwords)
-    const users = await User.find({})
-      .select('fullName type photo profile isGroupLead') 
+    // 4. Build query — exclude current user, optionally search by name
+    const query: any = { _id: { $ne: (currentUser as any)._id } };
+    if (search) {
+      query.fullName = { $regex: search, $options: 'i' };
+    }
+
+    // 5. Fetch users — only safe, non-sensitive fields
+    const users = await User.find(query)
+      .select('fullName type photo')
       .limit(limit)
       .skip((page - 1) * limit)
       .lean()
       .exec();
-    
-    // 5. Format Response safely
-    const mappedUsers = users.map((user: any) => ({
-      _id: user._id,
+
+    // 6. Format response
+    const mappedUsers = (users as any[]).map((user) => ({
+      _id: user._id.toString(),
+      id: user._id.toString(),
       name: user.fullName || 'Unknown User',
+      fullName: user.fullName || 'Unknown User',
       type: user.type,
-      photo: user.photo || user.profile?.photo || '/placeholder.svg',
-      isGroupLead: user.profile?.isGroupLead || false
+      photo: user.photo || '/placeholder-user.jpg',
+      avatar: user.photo || '/placeholder-user.jpg',
     }));
-    
-    return NextResponse.json({
-      users: mappedUsers,
-      pagination: {
-        page,
-        limit,
-        total: await User.countDocuments()
-      }
-    });
+
+    return NextResponse.json(mappedUsers);
   } catch (error: any) {
     console.error('GET /api/users error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -107,6 +107,12 @@ export const authOptions: NextAuthOptions = {
 
               // Also update role if it changed
               token.role = freshUser.type;
+
+              // FIX: Sync profile photo so it always reflects the latest uploaded photo
+              const freshPhoto = freshUser.photo || freshUser.photoUrl;
+              if (freshPhoto) {
+                token.image = freshPhoto;
+              }
             }
           }
         } catch (error) {
