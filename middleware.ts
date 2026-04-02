@@ -29,7 +29,10 @@ export async function middleware(request: NextRequest) {
     '/banned',
     '/suspended',
     '/unauthorized',
+    '/auth/forgot-password',
+    '/auth/reset-password',
   ];
+
 
   // Public API routes (accessible without login)
   const publicApiPrefixes = [

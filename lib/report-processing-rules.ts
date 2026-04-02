@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import Report, { updateReportStatus } from '@/models/Report';
 import { createActivityLog } from '@/models/AdminActivityLog';
 import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/auth';
 import User from '@/models/User';
 import Project from '@/models/Project';
 import Comment from '@/models/Comment';
@@ -56,7 +57,7 @@ export const REPORT_PROCESSING_RULES = {
 
 // 🔹 Helper Functions for Role-Based Access Control
 async function checkAdminPermissions(request: NextRequest, requiredRole: 'admin' | 'super-admin' = 'admin') {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return { error: NextResponse.json({ error: 'Unauthorized - No session found' }, { status: 401 }) };

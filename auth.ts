@@ -1,10 +1,12 @@
 // auth.ts
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { findUserByEmail } from './models/User';
 import bcrypt from 'bcryptjs';
 import { connectDB } from './lib/db';
 import mongoose from 'mongoose';
+
+// Detect if running on Vercel (HTTPS) to set secure cookies
+const useSecureCookies = !!process.env.VERCEL;
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -21,78 +23,62 @@ export const authOptions: NextAuthOptions = {
 
         try {
           await connectDB();
-          console.log('🔍 Looking for user with email:', credentials.email);
+          console.log('[AUTH] Looking for user with email:', credentials.email);
 
-          // Temporary bypass: Use direct database query instead of TypeScript model
           const db = mongoose.connection.db;
           if (!db) {
-            console.log('Database not connected');
+            console.log('[AUTH] Database not connected');
             return null;
           }
 
-          // Debug: Check if we can access the collection
-          const collections = await db.listCollections().toArray();
-          console.log('Available collections:', collections.map(c => c.name));
-
           const user = await db.collection('users').findOne({ email: credentials.email });
 
-          console.log('👤 User found:', user ? 'YES' : 'NO');
-          if (user) {
-            console.log('📧 User email:', user.email);
-            console.log('👤 User type:', user.type);
-          } else {
-            // Check what users exist
-            const allUsers = await db.collection('users').find({}).toArray();
-            console.log('Total users in database:', allUsers.length);
-            allUsers.forEach(u => {
-              console.log('  -', u.email);
-            });
-          }
-
           if (!user) {
-            console.log('No user found with this email');
+            console.log('[AUTH] No user found with email:', credentials.email);
             return null;
           }
 
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
           if (!isPasswordValid) {
-            console.log('Invalid password');
+            console.log('[AUTH] Invalid password for:', credentials.email);
             return null;
           }
 
+          console.log('[AUTH] Login successful for:', credentials.email, 'type:', user.type);
+
+          // Return the user object that NextAuth will pass to the jwt callback
           return {
             id: user._id.toString(),
             email: user.email,
-            name: user.name || user.fullName, // Support both for safety
-            image: user.photoUrl || user.photo,
+            name: user.name || user.fullName,
+            image: user.photo || user.photoUrl || null,
             role: user.type,
-            type: user.type
+            type: user.type,
           };
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('[AUTH] Authorize error:', error);
           return null;
         }
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      // Initial sign in
+    async jwt({ token, user }) {
+      // On initial sign-in, copy user fields to the token
       if (user) {
-        console.log('🔹 [JWT] Initial sign in for user:', user.id);
-        token.role = (user as any).role || (user as any).type;
+        console.log('[JWT] Initial sign in for:', user.email);
         token.id = user.id;
-        if (user.email) token.email = user.email;
-        if (user.name) token.name = user.name;
-        if (user.image) token.image = user.image;
-
-        token.banStatus = (user as any).banStatus || (user as any).account_status || 'ACTIVE';
-        token.banReason = (user as any).banReason;
-        token.banExpiresAt = (user as any).banExpiresAt;
+        token.role = (user as any).role || (user as any).type;
+        token.email = user.email || undefined;
+        token.name = user.name || undefined;
+        token.image = user.image || undefined;
+        token.banStatus = (user as any).banStatus || 'ACTIVE';
+        token.banReason = (user as any).banReason || undefined;
+        token.banExpiresAt = (user as any).banExpiresAt || undefined;
       }
 
-      // Refetch user data on every JWT access to ensure status is fresh
+      // Refresh user data from DB on every token access to keep status/photo in sync
       if (token.email) {
         try {
           await connectDB();
@@ -100,15 +86,12 @@ export const authOptions: NextAuthOptions = {
           if (db) {
             const freshUser = await db.collection('users').findOne({ email: token.email });
             if (freshUser) {
-              // Update token with fresh data
               token.banStatus = freshUser.account_status || 'ACTIVE';
               token.banReason = freshUser.banReason;
               token.banExpiresAt = freshUser.banExpiresAt;
-
-              // Also update role if it changed
               token.role = freshUser.type;
 
-              // FIX: Sync profile photo so it always reflects the latest uploaded photo
+              // Sync profile photo
               const freshPhoto = freshUser.photo || freshUser.photoUrl;
               if (freshPhoto) {
                 token.image = freshPhoto;
@@ -116,41 +99,30 @@ export const authOptions: NextAuthOptions = {
             }
           }
         } catch (error) {
-          console.error('Error refetching user data in JWT callback:', error);
+          console.error('[JWT] Error refreshing user data:', error);
         }
       }
 
       return token;
     },
     async session({ session, token }) {
+      // Map token fields → session.user so the client has access
       if (session?.user) {
-        try {
-          const { logDebug } = require('./lib/debug-logger');
-          logDebug('AUTH_SESSION_CALLBACK', {
-            tokenId: token.id,
-            tokenSub: token.sub,
-            tokenKeys: Object.keys(token)
-          });
-        } catch (e) { console.error(e); }
+        console.log('[SESSION] Building session for token.id:', token.id, 'token.sub:', token.sub);
 
-        // Return a NEW object to ensure changes persist and aren't overwritten by internal references
-        return {
-          ...session,
-          user: {
-            ...session.user,
-            id: (token.id as string) || (token.sub as string),
-            role: (token.role as string) === 'super_admin' ? 'super-admin' : (token.role as string),
-            name: token.name,
-            email: token.email,
-            image: (token.image as string) || null,
-            type: (token.role as string),
-            banStatus: (token.banStatus as string) || 'ACTIVE',
-            account_status: (token.banStatus as string) || 'ACTIVE', // Ensure account_status is available
-            banReason: (token.banReason as string) || null,
-            banExpiresAt: (token.banExpiresAt as string) || null
-          }
-        };
+        session.user.id = (token.id as string) || (token.sub as string);
+        session.user.role = (token.role as string) === 'super_admin' ? 'super-admin' : (token.role as string);
+        session.user.name = token.name;
+        session.user.email = token.email;
+        session.user.image = (token.image as string) || null;
+        (session.user as any).type = (token.role as string);
+        (session.user as any).banStatus = (token.banStatus as string) || 'ACTIVE';
+        (session.user as any).account_status = (token.banStatus as string) || 'ACTIVE';
+        (session.user as any).banReason = (token.banReason as string) || null;
+        (session.user as any).banExpiresAt = (token.banExpiresAt as string) || null;
       }
+
+      // CRUCIAL: always return the session object
       return session;
     },
   },
@@ -162,8 +134,22 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Vercel-aware cookie configuration
+  cookies: useSecureCookies
+    ? {
+        sessionToken: {
+          name: `__Secure-next-auth.session-token`,
+          options: {
+            httpOnly: true,
+            sameSite: 'lax' as const,
+            path: '/',
+            secure: true,
+          },
+        },
+      }
+    : undefined,
 };
 
-// Add these exports at the bottom of the file
+// Route handler exports
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

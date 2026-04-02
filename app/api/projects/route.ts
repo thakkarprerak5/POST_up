@@ -47,7 +47,20 @@ export async function GET(request: Request) {
 
   const query: any = {};
   if (tag) query.tags = tag;
-  if (authorId) query.author = authorId;
+  if (authorId) {
+    const { ObjectId } = require('mongodb');
+    try {
+      // Query both the ObjectId author field AND the string authorId field
+      query.$or = [
+        { author: new ObjectId(authorId) },
+        { authorId: authorId },
+      ];
+    } catch {
+      // If authorId is not a valid ObjectId string, fall back to string match only
+      query.authorId = authorId;
+    }
+  }
+
 
   // NEW LIFECYCLE: Filter by project status - default to ACTIVE only
   if (status) {

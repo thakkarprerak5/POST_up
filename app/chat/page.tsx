@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import { Send, Users, ArrowLeft, Plus, Search, MessageCircle, Trash, X, Check, RotateCcw, FileText } from "lucide-react"
+import { Send, Users, ArrowLeft, Plus, Search, MessageCircle, Trash, X, Check, RotateCcw, FileText, LogOut, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -86,6 +86,8 @@ export default function ChatPage() {
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set())
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [chatToDelete, setChatToDelete] = useState<string | null>(null)
+  const [leaveGroupConfirmOpen, setLeaveGroupConfirmOpen] = useState(false)
+  const [deleteGroupConfirmOpen, setDeleteGroupConfirmOpen] = useState(false)
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
   const [isTyping, setIsTyping] = useState(false)
   const [editingMessage, setEditingMessage] = useState<string | null>(null)
@@ -487,6 +489,50 @@ export default function ChatPage() {
     }
   }
 
+  // Handle leaving a group chat
+  const handleLeaveGroup = async () => {
+    if (!activeChat) return
+    try {
+      const res = await fetch('/api/chat/leave-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: activeChat.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to leave group')
+      }
+      setLeaveGroupConfirmOpen(false)
+      safeSetActiveChat(null)
+      setView('list')
+      await fetchChats()
+    } catch (error) {
+      console.error('Failed to leave group:', error)
+    }
+  }
+
+  // Handle deleting a group chat
+  const handleDeleteGroup = async () => {
+    if (!activeChat) return
+    try {
+      const res = await fetch('/api/chat/delete-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: activeChat.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to delete group')
+      }
+      setDeleteGroupConfirmOpen(false)
+      safeSetActiveChat(null)
+      setView('list')
+      await fetchChats()
+    } catch (error) {
+      console.error('Failed to delete group:', error)
+    }
+  }
+
   // Context menu handlers
   const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
     e.preventDefault()
@@ -529,10 +575,12 @@ export default function ChatPage() {
 
       // Fetch deleted chats
       const chatsResponse = await fetch('/api/chat/restore')
+      if (!chatsResponse.ok) throw new Error(`Failed to fetch deleted chats: ${chatsResponse.status}`)
       const chatsData = await chatsResponse.json()
 
       // Fetch deleted messages
       const messagesResponse = await fetch('/api/chat/restore-message')
+      if (!messagesResponse.ok) throw new Error(`Failed to fetch deleted messages: ${messagesResponse.status}`)
       const messagesData = await messagesResponse.json()
 
       setDeletedItems({
@@ -776,6 +824,38 @@ export default function ChatPage() {
               >
                 Delete
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Group Confirmation Dialog */}
+      {leaveGroupConfirmOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">Leave Group</h3>
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to leave this group? You won't be able to see group messages anymore.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setLeaveGroupConfirmOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleLeaveGroup}>Leave Group</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Group Confirmation Dialog */}
+      {deleteGroupConfirmOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">Delete Group</h3>
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to delete this group? This action is permanent and cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setDeleteGroupConfirmOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDeleteGroup}>Delete Group</Button>
             </div>
           </div>
         </div>
@@ -1229,6 +1309,35 @@ export default function ChatPage() {
                       <Users className="h-4 w-4" />
                     </Button>
                   </div>
+                  {/* Group actions - only for group chats */}
+                  {activeChat.isGroup && (
+                    <div className="flex gap-2">
+                      {/* Leave Group: visible to all group members */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 text-orange-600 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                        onClick={() => setLeaveGroupConfirmOpen(true)}
+                        title="Leave this group"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Leave
+                      </Button>
+                      {/* Delete Group: only visible to group creator (first participant) */}
+                      {activeChat.participants?.[0]?.id === session?.user?.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                          onClick={() => setDeleteGroupConfirmOpen(true)}
+                          title="Delete this group"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete Group
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Messages */}

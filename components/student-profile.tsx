@@ -253,7 +253,7 @@ export function StudentProfile({ student, isOwner = false }: StudentProfileProps
           {/* Test color block */}
           {!student.bannerImage && (
             <div
-              className="absolute inset-0"
+              className="w-full h-full bg-muted flex items-center justify-center"
               style={{ backgroundColor: student.bannerColor || '#3b82f6' }}
             />
           )}

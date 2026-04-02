@@ -883,82 +883,90 @@ export function ProjectRegistrationStepperNew({ isOpen, onClose, user }: Project
                         )}
                       </div>
                     ) : (
-                      filteredMentors.map((mentor) => (
-                        <div
-                          key={mentor._id || mentor.id}
-                          className={`group p-4 border rounded-lg cursor-pointer transition-all relative ${selectedMentor?._id === mentor._id || selectedMentor?.id === mentor.id
-                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                            }`}
-                          onClick={() => handleMentorSelect(mentor)}
-                        >
-                          {/* Selection indicator */}
-                          {(selectedMentor?._id === mentor._id || selectedMentor?.id === mentor.id) && (
-                            <div className="absolute top-2 right-2">
-                              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                            </div>
-                          )}
+                      filteredMentors.map((mentor) => {
+                        // Safe selection check: explicitly require selectedMentor to be non-null
+                        // to prevent undefined === undefined false positives on initial load
+                        const mentorId = mentor._id || mentor.id;
+                        const selectedId = selectedMentor ? (selectedMentor._id || selectedMentor.id || '') : '';
+                        const isSelected = !!selectedId && !!mentorId && selectedId === mentorId;
 
-                          <div className="flex items-start space-x-3">
-                            <Avatar className="h-12 w-12 border-2 border-white">
-                              <AvatarImage
-                                src={(mentor.avatar || mentor.photo)?.trim() ? (mentor.avatar || mentor.photo) : undefined}
-                                alt={mentor.name || 'Mentor'}
-                              />
-                              <AvatarFallback>
-                                <User className="h-6 w-6" />
-                              </AvatarFallback>
-                            </Avatar>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2">
-                                <h3 className={`font-medium truncate transition-colors ${selectedMentor?._id === mentor._id || selectedMentor?.id === mentor.id
-                                  ? "text-blue-900"
-                                  : "text-gray-900 group-hover:text-black"
-                                  }`}>
-                                  {mentor.fullName || mentor.name || 'Unknown Mentor'}
-                                </h3>
-
-                                {(selectedMentor?._id === mentor._id || selectedMentor?.id === mentor.id) && (
-                                  <Badge variant="default" className="text-xs bg-blue-600">
-                                    Selected
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="flex items-center text-sm text-gray-500 mt-1">
-                                <Mail className="h-3 w-3 mr-1" />
-                                <span className="truncate">{mentor.email || 'No email'}</span>
-                              </div>
-
-                              {mentor.department && (
-                                <div className="text-sm text-gray-600 mt-1">
-                                  {mentor.department}
+                        return (
+                          <div
+                            key={mentorId}
+                            className={`group p-4 border rounded-lg cursor-pointer transition-all relative ${isSelected
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
+                              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                              }`}
+                            onClick={() => handleMentorSelect(mentor)}
+                          >
+                            {/* Selection indicator */}
+                            {isSelected && (
+                              <div className="absolute top-2 right-2">
+                                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
                                 </div>
-                              )}
+                              </div>
+                            )}
 
-                              {mentor.expertise && mentor.expertise.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {mentor.expertise.slice(0, 3).map((skill, index) => (
-                                    <Badge key={`skill-${mentor._id || mentor.id}-${index}`} variant="secondary" className="text-xs">
-                                      {skill}
-                                    </Badge>
-                                  ))}
-                                  {mentor.expertise.length > 3 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{mentor.expertise.length - 3} more
+                            <div className="flex items-start space-x-3">
+                              <Avatar className="h-12 w-12 border-2 border-white">
+                                <AvatarImage
+                                  src={(mentor.avatar || mentor.photo)?.trim() ? (mentor.avatar || mentor.photo) : undefined}
+                                  alt={mentor.name || 'Mentor'}
+                                />
+                                <AvatarFallback>
+                                  <User className="h-6 w-6" />
+                                </AvatarFallback>
+                              </Avatar>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-2">
+                                  <h3 className={`font-medium truncate transition-colors ${isSelected
+                                    ? "text-blue-900"
+                                    : "text-gray-900 group-hover:text-black"
+                                    }`}>
+                                    {mentor.fullName || mentor.name || 'Unknown Mentor'}
+                                  </h3>
+
+                                  {isSelected && (
+                                    <Badge variant="default" className="text-xs bg-blue-600">
+                                      Selected
                                     </Badge>
                                   )}
                                 </div>
-                              )}
+
+                                <div className="flex items-center text-sm text-gray-500 mt-1">
+                                  <Mail className="h-3 w-3 mr-1" />
+                                  <span className="truncate">{mentor.email || 'No email'}</span>
+                                </div>
+
+                                {mentor.department && (
+                                  <div className="text-sm text-gray-600 mt-1">
+                                    {mentor.department}
+                                  </div>
+                                )}
+
+                                {mentor.expertise && mentor.expertise.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {mentor.expertise.slice(0, 3).map((skill, index) => (
+                                      <Badge key={`skill-${mentor._id || mentor.id}-${index}`} variant="secondary" className="text-xs">
+                                        {skill}
+                                      </Badge>
+                                    ))}
+                                    {mentor.expertise.length > 3 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{mentor.expertise.length - 3} more
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

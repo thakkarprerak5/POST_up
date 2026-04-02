@@ -49,6 +49,18 @@ export function ProjectUploadForm({ isEdit = false, initialData, onSuccess }: Pr
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customTag, setCustomTag] = useState("")
+  const [urlErrors, setUrlErrors] = useState<{ github?: string; live?: string }>({})
+
+  // Validates that a URL is either empty or a valid https:// URL
+  const isValidUrl = (url: string) => {
+    if (!url || url.trim() === '') return true
+    try {
+      const parsed = new URL(url.trim())
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+    } catch {
+      return false
+    }
+  }
 
   // --------------------------
   // IMAGE UPLOAD
@@ -126,6 +138,20 @@ export function ProjectUploadForm({ isEdit = false, initialData, onSuccess }: Pr
   // --------------------------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate URLs before submitting
+    const newErrors: { github?: string; live?: string } = {}
+    if (formData.githubLink && !isValidUrl(formData.githubLink)) {
+      newErrors.github = 'Please enter a valid URL (must start with http:// or https://)'
+    }
+    if (formData.liveLink && !isValidUrl(formData.liveLink)) {
+      newErrors.live = 'Please enter a valid URL (must start with http:// or https://)'
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setUrlErrors(newErrors)
+      return
+    }
+    setUrlErrors({})
     setIsSubmitting(true)
 
     try {
@@ -280,30 +306,46 @@ export function ProjectUploadForm({ isEdit = false, initialData, onSuccess }: Pr
         <div className="space-y-4">
           <Label>Project Links</Label>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-muted border border-border rounded-lg px-4 py-2.5">
-              <Github className="h-5 w-5" />
-              <span>GitHub</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-muted border border-border rounded-lg px-4 py-2.5">
+                <Github className="h-5 w-5" />
+                <span>GitHub</span>
+              </div>
+              <Input
+                placeholder="https://github.com/username/repo"
+                value={formData.githubLink}
+                onChange={(e) => {
+                  setFormData({ ...formData, githubLink: e.target.value })
+                  if (urlErrors.github) setUrlErrors((prev) => ({ ...prev, github: undefined }))
+                }}
+                className={`bg-muted border-border h-11 flex-1 ${urlErrors.github ? 'border-red-500' : ''}`}
+              />
             </div>
-            <Input
-              placeholder="https://github.com/username/repo"
-              value={formData.githubLink}
-              onChange={(e) => setFormData({ ...formData, githubLink: e.target.value })}
-              className="bg-muted border-border h-11 flex-1"
-            />
+            {urlErrors.github && (
+              <p className="text-xs text-red-500 ml-1">{urlErrors.github}</p>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-muted border border-border rounded-lg px-4 py-2.5">
-              <ExternalLink className="h-5 w-5" />
-              <span>Live</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-muted border border-border rounded-lg px-4 py-2.5">
+                <ExternalLink className="h-5 w-5" />
+                <span>Live</span>
+              </div>
+              <Input
+                placeholder="https://project.com"
+                value={formData.liveLink}
+                onChange={(e) => {
+                  setFormData({ ...formData, liveLink: e.target.value })
+                  if (urlErrors.live) setUrlErrors((prev) => ({ ...prev, live: undefined }))
+                }}
+                className={`bg-muted border-border h-11 flex-1 ${urlErrors.live ? 'border-red-500' : ''}`}
+              />
             </div>
-            <Input
-              placeholder="https://project.com"
-              value={formData.liveLink}
-              onChange={(e) => setFormData({ ...formData, liveLink: e.target.value })}
-              className="bg-muted border-border h-11 flex-1"
-            />
+            {urlErrors.live && (
+              <p className="text-xs text-red-500 ml-1">{urlErrors.live}</p>
+            )}
           </div>
         </div>
 

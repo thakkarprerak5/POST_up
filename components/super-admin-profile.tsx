@@ -355,8 +355,8 @@ const SuperAdminProfile: React.FC<SuperAdminProfileProps> = ({ superAdmin, isOwn
                       variant={showDashboard ? "default" : "outline"}
                       size="sm"
                       className={`gap-2 border-border hover:border-primary ${showDashboard
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "bg-background hover:bg-muted"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-background hover:bg-muted"
                         }`}
                       onClick={() => setShowDashboard(!showDashboard)}
                       title="Toggle super admin dashboard"
@@ -371,8 +371,8 @@ const SuperAdminProfile: React.FC<SuperAdminProfileProps> = ({ superAdmin, isOwn
                       variant={isFollowing(superAdmin._id) ? "default" : "outline"}
                       size="sm"
                       className={`gap-2 border-border hover:border-primary ${isFollowing(superAdmin._id)
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "bg-blue-500 text-white hover:bg-blue-600"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-blue-500 text-white hover:bg-blue-600"
                         }`}
                       onClick={handleFollow}
                     >

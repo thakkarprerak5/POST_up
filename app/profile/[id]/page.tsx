@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from 'react';
 import { StudentProfile } from "@/components/student-profile";
 import MentorProfile from "@/components/mentor-profile";
-import ProfileHeader from "@/app/profile/ProfileHeader";
+
 import { Loader2 } from 'lucide-react';
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
@@ -108,10 +108,7 @@ export default function PublicProfilePage() {
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="pt-4 px-4 md:px-4 lg:px-4">
           <div className="container mx-auto py-8 px-4">
-            <ProfileHeader user={user} isOwner={isOwner} />
-            <div className="mt-8">
-              <MentorProfile mentor={mentorData} isOwner={isOwner} />
-            </div>
+            <MentorProfile mentor={mentorData} isOwner={isOwner} />
           </div>
         </main>
       </div>
@@ -172,10 +169,7 @@ export default function PublicProfilePage() {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="pt-16 px-4 md:px-8 lg:px-12">
         <div className="container mx-auto py-8 px-4">
-          <ProfileHeader user={user} isOwner={isOwner} />
-          <div className="mt-8">
-            <StudentProfile student={studentData} isOwner={isOwner} />
-          </div>
+          <StudentProfile student={studentData} isOwner={isOwner} />
         </div>
       </main>
     </div>

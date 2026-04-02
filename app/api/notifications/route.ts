@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/auth';
 import { connectDB } from '@/lib/db';
 import Notification, {
     getNotificationsByRecipient,
@@ -13,8 +14,9 @@ import Notification, {
 // GET: Fetch notifications for the current user
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user) {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            console.log('[NOTIFICATIONS] GET - No session or user id found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '20');
         const skip = parseInt(searchParams.get('skip') || '0');
 
-        const userId = (session.user as any).id || (session.user as any)._id;
+        const userId = session.user.id;
 
         const options: any = { limit, skip };
         if (isReadParam === 'true') {
@@ -43,24 +45,13 @@ export async function GET(request: NextRequest) {
         const unreadCount = await getUnreadCount(userId);
         const hasHighPriority = await hasHighPriorityUnread(userId);
 
-        // File logging for debug
-        try {
-            const { logDebug } = require('@/lib/debug-logger');
-            logDebug('FETCH_NOTIFICATIONS', {
-                userId,
-                sessionUser: session.user,
-                count: notifications.length,
-                unreadCount
-            });
-        } catch (e) { console.error('Log error', e); }
-
         return NextResponse.json({
             notifications,
             unreadCount,
             hasHighPriority,
         });
     } catch (error: any) {
-        console.error('Error fetching notifications:', error);
+        console.error('[NOTIFICATIONS] GET error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to fetch notifications' },
             { status: 500 }
@@ -71,14 +62,14 @@ export async function GET(request: NextRequest) {
 // PATCH: Mark notification(s) as read
 export async function PATCH(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user) {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         await connectDB();
 
-        const userId = (session.user as any).id || (session.user as any)._id;
+        const userId = session.user.id;
         const body = await request.json();
         const { notificationId, markAllRead } = body;
 
@@ -97,7 +88,7 @@ export async function PATCH(request: NextRequest) {
         const notification = await markNotificationAsRead(notificationId, userId);
         return NextResponse.json({ success: true, notification });
     } catch (error: any) {
-        console.error('Error marking notification as read:', error);
+        console.error('[NOTIFICATIONS] PATCH error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to mark notification as read' },
             { status: 500 }
@@ -108,14 +99,14 @@ export async function PATCH(request: NextRequest) {
 // DELETE: Delete a notification
 export async function DELETE(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user) {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         await connectDB();
 
-        const userId = (session.user as any).id || (session.user as any)._id;
+        const userId = session.user.id;
         const { searchParams } = new URL(request.url);
         const notificationId = searchParams.get('id');
 
@@ -129,7 +120,7 @@ export async function DELETE(request: NextRequest) {
         await deleteNotificationById(notificationId, userId);
         return NextResponse.json({ success: true, message: 'Notification deleted' });
     } catch (error: any) {
-        console.error('Error deleting notification:', error);
+        console.error('[NOTIFICATIONS] DELETE error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to delete notification' },
             { status: 500 }
